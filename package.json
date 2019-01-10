@@ -1,0 +1,73 @@
+{
+	"name": "middy-reroute",
+	"version": "0.0.0",
+	"description": "A middyjs middleware implementation of Netlify&#39;s redirects functionality.",
+	"license": "MIT",
+	"repository": "iDVB/middy-reroute",
+	"author": {
+		"name": "Dan Van Brunt",
+		"email": "dvanbrunt@gmail.com",
+		"url": "github.com/iDVB/middy-reroute"
+	},
+	"engines": {
+		"node": ">=6"
+	},
+	"scripts": {
+		"test:unit": "jest --verbose --coverage",
+		"test:unit:watch": "jest --verbose --coverage --watch"
+	},
+	"files": [
+		"index.js"
+	],
+	"keywords": [
+		""
+	],
+	"dependencies": {
+		"axios": "^0.18.0",
+		"lodash.find": "^4.6.0",
+		"lodash.reduce": "^4.6.0",
+		"path-match": "^1.2.4"
+	},
+	"devDependencies": {
+		"aws-sdk": "^2.384.0",
+		"babel-eslint": "^10.0.1",
+		"babel-jest": "^23.6.0",
+		"eslint": "^5.12.0",
+		"eslint-config-prettier": "^3.3.0",
+		"eslint-plugin-prettier": "^3.0.1",
+		"jest": "^23.6.0",
+		"middy": "^0.20.0",
+		"prettier": "^1.15.3",
+		"prettier-eslint": "^8.8.2"
+	},
+	"eslintConfig": {
+		"env": {
+			"browser": false,
+			"commonjs": true,
+			"node": true,
+			"es6": true,
+			"jest": true
+		},
+		"extends": [
+			"prettier"
+		],
+		"plugins": [
+			"prettier"
+		],
+		"parser": "babel-eslint",
+		"rules": {
+			"prettier/prettier": [
+				"error",
+				{
+					"singleQuote": true,
+					"trailingComma": "all"
+				}
+			]
+		}
+	},
+	"jest": {
+		"collectCoverageFrom": [
+			"src/**/*.js"
+		]
+	}
+}
