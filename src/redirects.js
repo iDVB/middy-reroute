@@ -1,45 +1,67 @@
 const STATUS_CODES = require('http').STATUS_CODES;
-const AWS = require('aws-sdk');
+const S3 = require('./storageProvider');
 const axios = require('axios');
-const S3 = new AWS.S3();
 const _find = require('lodash.find');
 const _reduce = require('lodash.reduce');
 const { parse } = require('url');
+const path = require('path');
 const route = require('path-match')({
   sensitive: false,
   strict: false,
   end: true,
 });
 
-const defaults = {
-  file: '_redirects',
-  regex: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?/,
-  defaultStatus: 301,
-  redirectStatuses: [301, 302, 303],
-};
-
 let options;
 
 const isRedirectURI = status => options.redirectStatuses.includes(status);
 
 const redirectMiddleware = async (opts, handler, next) => {
+  const { request } = handler.event.Records[0].cf;
+  const { origin } = request;
+  const defaults = {
+    file: '_redirects',
+    regex: {
+      htmlEnd: /(.*)\.html?$/g,
+      ignoreRules: /^(?:#.*[\r\n]|\s*[\r\n])/gm,
+      ruleline: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?/,
+    },
+    defaultStatus: 301,
+    redirectStatuses: [301, 302, 303],
+    bucketName: origin.s3.domainName.replace('.s3.amazonaws.com', ''),
+    friendlyUrls: true,
+  };
   options = { ...defaults, ...opts };
 
-  const { request, response } = handler.event.Records[0].cf;
-  const { origin } = request;
-  const bucketName =
-    options.bucketName || origin.s3.domainName.replace('.s3.amazonaws.com', '');
-
   try {
-    const data = await getRedirectData(bucketName, options.file);
+    const data = await getRedirectData();
     const match = findMatch(data, request.uri);
 
+    // Implement friendly URls
+    const [isHtmlFile, fullpath, file, filename] = request.uri.match(
+      /(.*)\/((.*)\.html?)$/,
+    );
+
+    let parsed;
+    if (isHtmlFile && options.friendlyUrls) {
+      const end = filename === 'index' ? '' : `${filename}/`;
+      parsed = {
+        parsedTo: `${fullpath}/${end}`,
+        status: 301,
+      };
+    }
+
+    const matchParsed = {
+      ...match,
+      ...parsed,
+    };
+
     handler.event =
-      !match || (response && response.status === 200 && !match.force)
+      // If no matching rule
+      !match
         ? handler.event
-        : isRedirectURI(match.status)
-        ? redirect(match.parsedTo, match.status)
-        : await rewrite(match.parsedTo, handler.event);
+        : isRedirectURI(matchParsed.status)
+        ? redirect(matchParsed.parsedTo, matchParsed.status)
+        : await rewrite(matchParsed.parsedTo, handler.event);
   } catch (err) {
     handler.callback(null, err);
   }
@@ -65,27 +87,27 @@ const findMatch = (data, uri) => {
   return match && { ...match, parsedTo: replaceAll(params, match.to) };
 };
 
-const getRedirectData = (bucketName, key) =>
+const getRedirectData = () =>
   options.rules
-    ? promisifyStatic(options.rules).then(rules => parseRedirects(rules))
+    ? promisifyStatic(options.rules).then(rules => parseRules(rules))
     : S3.getObject({
-        Bucket: bucketName,
-        Key: key,
+        Bucket: options.bucketName,
+        Key: options.file,
       })
         .promise()
-        .then(data => parseRedirects(data.Body.toString()));
+        .then(data => parseRules(data.Body.toString()));
 
-const parseRedirects = stringFile =>
+const parseRules = stringFile =>
   stringFile
     // remove empty and commented lines
-    .replace(/^(?:#.*[\r\n]|\s*[\r\n])/gm, '')
+    .replace(options.regex.ignoreRules, '')
     // split all lines
     .split(/[\r\n]/gm)
     // strip out the last line break
     .filter(l => l !== '')
     .map(l => {
       // regex
-      const [first, from, to, status, force] = l.match(options.regex);
+      const [first, from, to, status, force] = l.match(options.regex.ruleline);
       // restructure into object
       return {
         from,
@@ -108,6 +130,20 @@ const replaceSplats = (obj, pattern) =>
     pattern,
   );
 
+const doesKeyExist = key =>
+  S3.headObject({
+    Bucket: options.bucketName,
+    Key: key.replace(/^\/+/, ''),
+  })
+    .promise()
+    .then(data => true)
+    .catch(err => {
+      if (err.statusCode === 404) {
+        return false;
+      }
+      throw err;
+    });
+
 const redirect = (to, status) => ({
   status,
   statusDescription: STATUS_CODES[status],
@@ -117,28 +153,11 @@ const redirect = (to, status) => ({
 });
 
 const rewrite = async (to, event) => {
-  const reqRes = event.Records[0].cf;
-  const { request } = reqRes;
-  const isAbsoluteTo = /^(?:[a-z]+:)?\/\//.test(to);
-  const proxyData = isAbsoluteTo && (await axios.get(to));
+  let { request } = event.Records[0].cf;
 
-  if (proxyData) {
-    const {
-      headers,
-      data: body,
-      status,
-      statusText: statusDescription,
-    } = proxyData;
-    reqRes.response = {
-      status,
-      headers,
-      statusDescription,
-      body,
-    };
-  } else {
-    request.uri = to;
-  }
+  const keyExists = await doesKeyExist(to);
 
+  request.uri = to;
   return event;
 };
 
@@ -146,3 +165,28 @@ module.exports = opts => ({
   before: redirectMiddleware.bind(null, opts),
   // onError: redirectMiddleware.bind(null, opts),
 });
+
+// const getResponse = async to => {
+//   const isAbsoluteTo = /^(?:[a-z]+:)?\/\//.test(to);
+
+//   const response = await (isAbsoluteTo
+//     ? axios.get(to).then(data => ({
+//         headers,
+//         status,
+//         statusText: statusDescription,
+//         data: body,
+//       }))
+//     : S3.getObject({
+//         Bucket: options.bucketName,
+//         // remove leading slash
+//         Key: to.replace(/^\/+/, ''),
+//       })
+//         .promise()
+//         .then(data => {
+//           console.log({ S3: data });
+//         }));
+
+//   console.log(response);
+
+//   return response;
+// };
