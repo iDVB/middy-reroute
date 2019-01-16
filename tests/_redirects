@@ -9,7 +9,7 @@
 
 /trailingslash/  /trailred
 
-/news/   /blog/index.html   200
+/news/   /blog   200
 
 # Placeholders
 /news/:year/:month/:date/:slug   /blog/:date/:month/:year/:slug
@@ -30,7 +30,4 @@
 
 # Proxy
 /api/*  https://api.github.com/:splat   200
-
-# Single Page App Catch-All
-/*   /index.html   200
 

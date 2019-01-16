@@ -157,142 +157,144 @@ describe('📦 Middleware Redirects', () => {
     });
   };
 
-  // test('Redirect should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/internal1'),
-  //     event => {
-  //       // expect(S3.getObject).toBeCalled();
-  //       expect(event).toEqual(redirectSample('/internal2', 301));
-  //     },
-  //     done,
-  //   );
-  // });
-
-  // test('Redirect (Internal) with 301 should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/internal3'),
-  //     event => {
-  //       expect(event).toEqual(redirectSample('/internal4', 301));
-  //     },
-  //     done,
-  //   );
-  // });
-
-  // test('Redirect (Internal) with 302 should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/internal5'),
-  //     event => {
-  //       expect(event).toEqual(redirectSample('/internal6', 302));
-  //     },
-  //     done,
-  //   );
-  // });
-
-  // test('Redirect (Internal) with 303 should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/internal7'),
-  //     event => {
-  //       expect(event).toEqual(redirectSample('/internal8', 303));
-  //     },
-  //     done,
-  //   );
-  // });
-
-  // test('Redirect (External) should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/internal9'),
-  //     event => {
-  //       expect(event).toEqual(redirectSample('https://external.com', 301));
-  //     },
-  //     done,
-  //   );
-  // });
-
-  // test('Trailing slash normalization should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/trailingslash'),
-  //     event => {
-  //       expect(event).toEqual(redirectSample('/trailred', 301));
-  //     },
-  //     done,
-  //   );
-  // });
-
-  test('Friendly URLs should redirect', done => {
+  test('Redirect should work', done => {
     testScenerio(
       { rules },
-      eventSample('/news/index.htm'),
+      eventSample('/internal1'),
       event => {
-        expect(event).toEqual(redirectSample('/news/', 301));
+        // expect(S3.getObject).toBeCalled();
+        expect(event).toEqual(redirectSample('/internal2', 301));
       },
       done,
     );
   });
 
-  // test('Basic Rewrites should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/news/asdf/index.htm'),
-  //     event => {
-  //       expect(event).toEqual(redirectSample('/blog/index.html', 301));
-  //     },
-  //     done,
-  //   );
-  // });
+  test('Redirect (Internal) with 301 should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/internal3'),
+      event => {
+        expect(event).toEqual(redirectSample('/internal4', 301));
+      },
+      done,
+    );
+  });
 
-  // test('Placeholder (Internal) Redirects should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/news/2004/02/12/my-story'),
-  //     event => {
-  //       expect(event).toEqual(redirectSample('/blog/12/02/2004/my-story', 301));
-  //     },
-  //     done,
-  //   );
-  // });
+  test('Redirect (Internal) with 302 should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/internal5'),
+      event => {
+        expect(event).toEqual(redirectSample('/internal6', 302));
+      },
+      done,
+    );
+  });
 
-  // test('Placeholder (Internal) Rewrites should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/articles/2004/02/12/my-story'),
-  //     event => {
-  //       expect(event).toEqual(eventSample('/stories/12/02/2004/my-story'));
-  //     },
-  //     done,
-  //   );
-  // });
+  test('Redirect (Internal) with 303 should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/internal7'),
+      event => {
+        expect(event).toEqual(redirectSample('/internal8', 303));
+      },
+      done,
+    );
+  });
 
-  // test('Placeholder (External) Redirects should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/things/2004/02/12/my-story'),
-  //     event => {
-  //       expect(event).toEqual(
-  //         redirectSample('https://external.com/stuff/12/02/2004/my-story', 301),
-  //       );
-  //     },
-  //     done,
-  //   );
-  // });
+  test('Redirect (External) should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/internal9'),
+      event => {
+        expect(event).toEqual(redirectSample('https://external.com', 301));
+      },
+      done,
+    );
+  });
 
-  // test('Splats (Internal) should work', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/shop/2004/01/10/my-story'),
-  //     event => {
-  //       expect(event).toEqual(
-  //         redirectSample('/checkout/2004/01/10/my-story', 301),
-  //       );
-  //     },
-  //     done,
-  //   );
-  // });
+  test('Trailing slash normalization should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/trailingslash'),
+      event => {
+        expect(event).toEqual(redirectSample('/trailred', 301));
+      },
+      done,
+    );
+  });
+
+  test('Basic Rewrites should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/news/'),
+      event => {
+        expect(event).toEqual(eventSample('/blog/index.html'));
+      },
+      done,
+    );
+  });
+
+  test('DefaultDoc with pass-throughs should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/asdfdsfsd/'),
+      event => {
+        expect(event).toEqual(eventSample('/asdfdsfsd/index.html'));
+      },
+      done,
+    );
+  });
+
+  test('Placeholder (Internal) Redirects should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/news/2004/02/12/my-story'),
+      event => {
+        expect(event).toEqual(redirectSample('/blog/12/02/2004/my-story', 301));
+      },
+      done,
+    );
+  });
+
+  test('Placeholder (Internal) Rewrites should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/articles/2004/02/12/my-story'),
+      event => {
+        expect(event).toEqual(
+          eventSample('/stories/12/02/2004/my-story/index.html'),
+        );
+      },
+      done,
+    );
+  });
+
+  test('Placeholder (External) Redirects should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/things/2004/02/12/my-story'),
+      event => {
+        expect(event).toEqual(
+          redirectSample('https://external.com/stuff/12/02/2004/my-story', 301),
+        );
+      },
+      done,
+    );
+  });
+
+  test('Splats (Internal) should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/shop/2004/01/10/my-story'),
+      event => {
+        expect(event).toEqual(
+          redirectSample('/checkout/2004/01/10/my-story', 301),
+        );
+      },
+      done,
+    );
+  });
 
   // test('Custom 404s should work', done => {
   //   testScenerio(
@@ -305,28 +307,28 @@ describe('📦 Middleware Redirects', () => {
   //   );
   // });
 
-  // test('Existing URIs files should be ignored', done => {
-  //   const inputEvent = eventSample('/existing/index.php');
-  //   testScenerio(
-  //     { rules },
-  //     inputEvent,
-  //     event => {
-  //       expect(event).toEqual(inputEvent);
-  //     },
-  //     done,
-  //   );
-  // });
+  test('PrettyURLs should work', done => {
+    testScenerio(
+      { rules },
+      eventSample('/something/things.html'),
+      event => {
+        expect(event).toEqual(redirectSample('/something/things/', 301));
+      },
+      done,
+    );
+  });
 
-  // test('Existing URIs files but forced should be handled', done => {
-  //   testScenerio(
-  //     { rules },
-  //     eventSample('/something/index.html'),
-  //     event => {
-  //       expect(event).toEqual(redirectSample('/works', 301));
-  //     },
-  //     done,
-  //   );
-  // });
+  test('PrettyURLs should be ignored for existing files', done => {
+    const inputEvent = eventSample('/something/about.html');
+    testScenerio(
+      { rules },
+      inputEvent,
+      event => {
+        expect(event).toEqual(inputEvent);
+      },
+      done,
+    );
+  });
 
   // test('Proxying should work', done => {
   //   axios.get.mockImplementation(() => Promise.resolve(axiosSample));
@@ -351,3 +353,5 @@ describe('📦 Middleware Redirects', () => {
   //   );
   // });
 });
+
+//  /photos/*    /images/*    200!

@@ -21,7 +21,7 @@ const redirectMiddleware = async (opts, handler, next) => {
   const defaults = {
     file: '_redirects',
     regex: {
-      htmlEnd: /(.*)\.html?$/g,
+      htmlEnd: /(.*)\/((.*)\.html?)$/,
       ignoreRules: /^(?:#.*[\r\n]|\s*[\r\n])/gm,
       ruleline: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?/,
     },
@@ -29,52 +29,51 @@ const redirectMiddleware = async (opts, handler, next) => {
     redirectStatuses: [301, 302, 303],
     bucketName: origin.s3.domainName.replace('.s3.amazonaws.com', ''),
     friendlyUrls: true,
+    defaultDoc: `index.html`,
   };
   options = { ...defaults, ...opts };
 
   try {
-    const data = await getRedirectData();
-    const match = findMatch(data, request.uri);
+    // Check if file exists
+    const keyExists = await doesKeyExist(request.uri);
+    // Check if there is a file with extension at the end of the path
+    const isFile = path.extname(request.uri) !== '';
+    // Detect if needing friendly URLs
+    const isUnFriendlyUrl =
+      options.friendlyUrls && request.uri.match(options.regex.htmlEnd);
 
-    // Implement friendly URls
-    const [isHtmlFile, fullpath, file, filename] = request.uri.match(
-      /(.*)\/((.*)\.html?)$/,
-    );
-
-    let parsed;
-    if (isHtmlFile && options.friendlyUrls) {
+    let event;
+    // Apply Friendly URLs if file doesn't exist
+    // Do not apply any rules and Redirect
+    if (!keyExists && isUnFriendlyUrl) {
+      const [first, fullpath, file, filename] = isUnFriendlyUrl;
       const end = filename === 'index' ? '' : `${filename}/`;
-      parsed = {
-        parsedTo: `${fullpath}/${end}`,
-        status: 301,
-      };
+      event = redirect(`${fullpath}/${end}`, 301);
+    } else {
+      // Gather and parse rules
+      const data = await getRedirectData();
+      // Find URI match in the rules
+      match = findMatch(data, request.uri);
+      if (match) {
+        // Match: match found
+        // Use status to decide how to handle
+        event = isRedirectURI(match.status)
+          ? redirect(match.parsedTo, match.status)
+          : await rewrite(ensureDefaultDoc(match.parsedTo), handler.event);
+      } else {
+        // Pass-Through: No match, so other then DefaultDoc, let it pass through
+        event = !isFile
+          ? await rewrite(ensureDefaultDoc(request.uri), handler.event)
+          : handler.event;
+      }
     }
 
-    const matchParsed = {
-      ...match,
-      ...parsed,
-    };
-
-    handler.event =
-      // If no matching rule
-      !match
-        ? handler.event
-        : isRedirectURI(matchParsed.status)
-        ? redirect(matchParsed.parsedTo, matchParsed.status)
-        : await rewrite(matchParsed.parsedTo, handler.event);
+    handler.event = event;
   } catch (err) {
     handler.callback(null, err);
   }
 
   return next();
-};
-
-const promisifyStatic = value => {
-  return new Promise(resolve => {
-    setTimeout(() => {
-      resolve(value);
-    }, 10);
-  });
 };
 
 const findMatch = (data, uri) => {
@@ -89,7 +88,7 @@ const findMatch = (data, uri) => {
 
 const getRedirectData = () =>
   options.rules
-    ? promisifyStatic(options.rules).then(rules => parseRules(rules))
+    ? parseRules(options.rules)
     : S3.getObject({
         Bucket: options.bucketName,
         Key: options.file,
@@ -155,8 +154,6 @@ const redirect = (to, status) => ({
 const rewrite = async (to, event) => {
   let { request } = event.Records[0].cf;
 
-  const keyExists = await doesKeyExist(to);
-
   request.uri = to;
   return event;
 };
@@ -165,6 +162,9 @@ module.exports = opts => ({
   before: redirectMiddleware.bind(null, opts),
   // onError: redirectMiddleware.bind(null, opts),
 });
+
+const ensureDefaultDoc = uri =>
+  path.extname(uri) === '' ? path.join(uri, options.defaultDoc) : uri;
 
 // const getResponse = async to => {
 //   const isAbsoluteTo = /^(?:[a-z]+:)?\/\//.test(to);
