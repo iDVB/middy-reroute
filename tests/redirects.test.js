@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const middy = require('middy');
-const axios = require('axios');
+// const axios = require('axios');
 const redirects = require('../src/redirects');
 const STATUS_CODES = require('http').STATUS_CODES;
 
@@ -155,8 +155,8 @@ describe('📦 Middleware Redirects', () => {
   beforeEach(() => {
     S3.headObject.mockReset();
     S3.headObject.mockClear();
-    // S3.getObject.mockReset();
-    // S3.getObject.mockClear();
+    S3.getObject.mockReset();
+    S3.getObject.mockClear();
   });
 
   const testScenerio = (
@@ -166,12 +166,18 @@ describe('📦 Middleware Redirects', () => {
     testOptions = { custom404: true },
     midOptions = { rules },
   ) => {
-    S3.headObject.mockImplementation(() => ({
-      promise: () => Promise.resolve(true ? true : false),
-    }));
-    S3.getObject.mockImplementation(({ Key }) => ({
-      promise: () => Promise.resolve(11),
-    }));
+    S3.headObject.mockImplementation(({ Key }) => {
+      console.log('headObject', Key);
+      return {
+        promise: () => Promise.resolve(true),
+      };
+    });
+    S3.getObject.mockImplementation(({ Key }) => {
+      console.log('getObject', Key);
+      return {
+        promise: () => Promise.resolve({ Body: 'test' }),
+      };
+    });
 
     const handler = middy((event, context, cb) => cb(null, event));
     handler.use(redirects(midOptions));

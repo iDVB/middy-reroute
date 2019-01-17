@@ -130,7 +130,7 @@ const replaceSplats = (obj, pattern) =>
   );
 
 const doesKeyExist = key => {
-  console.log({ key: key.replace(/^\/+/, '') });
+  // console.log({ key: key.replace(/^\/+/, '') });
   return S3.headObject({
     Bucket: options.bucketName,
     Key: key.replace(/^\/+/, ''),
@@ -154,12 +154,12 @@ const redirect = (to, status) => ({
 });
 
 const rewrite = async (to, event) => {
-  console.log({
-    to,
-    isAbsoluteTo: !isAbsoluteTo(to),
-    doesKeyExist: !(await doesKeyExist(to)),
-    test404: await get404Response(),
-  });
+  // console.log({
+  //   to,
+  //   isAbsoluteTo: !isAbsoluteTo(to),
+  //   doesKeyExist: !(await doesKeyExist(to)),
+  //   test404: await get404Response(),
+  // });
 
   const resp =
     (!isAbsoluteTo(to) &&
@@ -167,7 +167,7 @@ const rewrite = async (to, event) => {
       (await get404Response())) ||
     merge(event, { Records: [{ cf: { request: { uri: to } } }] });
 
-  console.log({ resp });
+  // console.log({ resp });
 
   return resp;
 };
