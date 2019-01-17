@@ -40,6 +40,8 @@ const redirectMiddleware = async (opts, handler, next) => {
     const isUnFriendlyUrl =
       options.friendlyUrls && request.uri.match(options.regex.htmlEnd);
 
+    // console.log({ uri: request.uri, keyExists, isFile, isUnFriendlyUrl });
+
     let event;
     // Apply Friendly URLs if file doesn't exist
     // Do not apply any rules and Redirect
@@ -177,8 +179,9 @@ const isAbsoluteTo = to => /^(?:[a-z]+:)?\/\//.test(to);
 const forceDefaultDoc = uri =>
   path.extname(uri) === '' ? path.join(uri, options.defaultDoc) : uri;
 
-const get404Response = () =>
-  S3.getObject({
+const get404Response = () => {
+  // console.log('get404Response');
+  return S3.getObject({
     Bucket: options.bucketName,
     Key: options.custom404,
   })
@@ -202,6 +205,7 @@ const get404Response = () =>
       }
       throw err;
     });
+};
 
 module.exports = opts => ({
   before: redirectMiddleware.bind(null, opts),

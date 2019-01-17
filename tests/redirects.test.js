@@ -163,19 +163,24 @@ describe('📦 Middleware Redirects', () => {
     request,
     callback,
     done,
-    testOptions = { custom404: true },
+    testOptions = {
+      noFiles: [`nofilehere/index.html`, `pretty/things.html`],
+      fileContents: { _redirect: rules, '404.html': html404 },
+    },
     midOptions = { rules },
   ) => {
     S3.headObject.mockImplementation(({ Key }) => {
-      console.log('headObject', Key);
       return {
-        promise: () => Promise.resolve(true),
+        promise: () =>
+          testOptions.noFiles.includes(Key)
+            ? Promise.reject({ statusCode: 404 })
+            : Promise.resolve({ statusCode: 200 }),
       };
     });
     S3.getObject.mockImplementation(({ Key }) => {
-      console.log('getObject', Key);
+      const resp = { Body: testOptions.fileContents[Key] };
       return {
-        promise: () => Promise.resolve({ Body: 'test' }),
+        promise: () => Promise.resolve(resp),
       };
     });
 
@@ -256,7 +261,6 @@ describe('📦 Middleware Redirects', () => {
         expect(event).toEqual(error404Sample(html404));
       },
       done,
-      { custom404: true },
     );
   });
 
@@ -350,9 +354,9 @@ describe('📦 Middleware Redirects', () => {
 
   test('PrettyURLs should work', done => {
     testScenerio(
-      eventSample('/something/things.html'),
+      eventSample('/pretty/things.html'),
       event => {
-        expect(event).toEqual(redirectSample('/something/things/', 301));
+        expect(event).toEqual(redirectSample('/pretty/things/', 301));
       },
       done,
     );
