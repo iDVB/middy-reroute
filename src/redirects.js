@@ -1,20 +1,17 @@
-const STATUS_CODES = require('http').STATUS_CODES;
-const S3 = require('./storageProvider');
-const axios = require('axios');
-const _find = require('lodash.find');
-const _reduce = require('lodash.reduce');
-const { parse } = require('url');
-const path = require('path');
-const route = require('path-match')({
-  sensitive: false,
-  strict: false,
-  end: true,
-});
+const STATUS_CODES = require('http').STATUS_CODES,
+  S3 = require('./storageProvider'),
+  merge = require('./utils/deepmerge'),
+  _find = require('lodash.find'),
+  _reduce = require('lodash.reduce'),
+  { parse } = require('url'),
+  path = require('path'),
+  route = require('path-match')({
+    sensitive: false,
+    strict: false,
+    end: true,
+  });
 
 let options;
-
-const isRedirectURI = status => options.redirectStatuses.includes(status);
-
 const redirectMiddleware = async (opts, handler, next) => {
   const { request } = handler.event.Records[0].cf;
   const { origin } = request;
@@ -30,8 +27,9 @@ const redirectMiddleware = async (opts, handler, next) => {
     bucketName: origin.s3.domainName.replace('.s3.amazonaws.com', ''),
     friendlyUrls: true,
     defaultDoc: `index.html`,
+    custom404: `404.html`,
   };
-  options = { ...defaults, ...opts };
+  options = merge(defaults, opts);
 
   try {
     // Check if file exists
@@ -59,11 +57,11 @@ const redirectMiddleware = async (opts, handler, next) => {
         // Use status to decide how to handle
         event = isRedirectURI(match.status)
           ? redirect(match.parsedTo, match.status)
-          : await rewrite(ensureDefaultDoc(match.parsedTo), handler.event);
+          : await rewrite(forceDefaultDoc(match.parsedTo), handler.event);
       } else {
         // Pass-Through: No match, so other then DefaultDoc, let it pass through
         event = !isFile
-          ? await rewrite(ensureDefaultDoc(request.uri), handler.event)
+          ? await rewrite(forceDefaultDoc(request.uri), handler.event)
           : handler.event;
       }
     }
@@ -75,6 +73,8 @@ const redirectMiddleware = async (opts, handler, next) => {
 
   return next();
 };
+
+const isRedirectURI = status => options.redirectStatuses.includes(status);
 
 const findMatch = (data, uri) => {
   let params;
@@ -129,8 +129,9 @@ const replaceSplats = (obj, pattern) =>
     pattern,
   );
 
-const doesKeyExist = key =>
-  S3.headObject({
+const doesKeyExist = key => {
+  console.log({ key: key.replace(/^\/+/, '') });
+  return S3.headObject({
     Bucket: options.bucketName,
     Key: key.replace(/^\/+/, ''),
   })
@@ -142,6 +143,7 @@ const doesKeyExist = key =>
       }
       throw err;
     });
+};
 
 const redirect = (to, status) => ({
   status,
@@ -152,41 +154,56 @@ const redirect = (to, status) => ({
 });
 
 const rewrite = async (to, event) => {
-  let { request } = event.Records[0].cf;
+  console.log({
+    to,
+    isAbsoluteTo: !isAbsoluteTo(to),
+    doesKeyExist: !(await doesKeyExist(to)),
+    test404: await get404Response(),
+  });
 
-  request.uri = to;
-  return event;
+  const resp =
+    (!isAbsoluteTo(to) &&
+      !(await doesKeyExist(to)) &&
+      (await get404Response())) ||
+    merge(event, { Records: [{ cf: { request: { uri: to } } }] });
+
+  console.log({ resp });
+
+  return resp;
 };
+
+const isAbsoluteTo = to => /^(?:[a-z]+:)?\/\//.test(to);
+
+const forceDefaultDoc = uri =>
+  path.extname(uri) === '' ? path.join(uri, options.defaultDoc) : uri;
+
+const get404Response = () =>
+  S3.getObject({
+    Bucket: options.bucketName,
+    Key: options.custom404,
+  })
+    .promise()
+    .then(({ Body }) => ({
+      status: '404',
+      statusDescription: STATUS_CODES['404'],
+      headers: {
+        'content-type': [
+          {
+            key: 'Content-Type',
+            value: 'text/html',
+          },
+        ],
+      },
+      body: Body.toString(),
+    }))
+    .catch(err => {
+      if (err.statusCode === 404) {
+        return false;
+      }
+      throw err;
+    });
 
 module.exports = opts => ({
   before: redirectMiddleware.bind(null, opts),
   // onError: redirectMiddleware.bind(null, opts),
 });
-
-const ensureDefaultDoc = uri =>
-  path.extname(uri) === '' ? path.join(uri, options.defaultDoc) : uri;
-
-// const getResponse = async to => {
-//   const isAbsoluteTo = /^(?:[a-z]+:)?\/\//.test(to);
-
-//   const response = await (isAbsoluteTo
-//     ? axios.get(to).then(data => ({
-//         headers,
-//         status,
-//         statusText: statusDescription,
-//         data: body,
-//       }))
-//     : S3.getObject({
-//         Bucket: options.bucketName,
-//         // remove leading slash
-//         Key: to.replace(/^\/+/, ''),
-//       })
-//         .promise()
-//         .then(data => {
-//           console.log({ S3: data });
-//         }));
-
-//   console.log(response);
-
-//   return response;
-// };

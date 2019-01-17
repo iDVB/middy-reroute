@@ -9,7 +9,9 @@
 
 /trailingslash/  /trailred
 
-/news/   /blog   200
+# Rewrites
+/news   /blog         200
+/stuff  /nofilehere   200
 
 # Placeholders
 /news/:year/:month/:date/:slug   /blog/:date/:month/:year/:slug
