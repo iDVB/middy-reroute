@@ -12,7 +12,7 @@ const STATUS_CODES = require('http').STATUS_CODES,
   });
 
 let options;
-const redirectMiddleware = async (opts, handler, next) => {
+const redirectMiddleware = async (opts = {}, handler, next) => {
   const { request } = handler.event.Records[0].cf;
   const { origin } = request;
   const defaults = {
@@ -40,8 +40,6 @@ const redirectMiddleware = async (opts, handler, next) => {
     const isUnFriendlyUrl =
       options.friendlyUrls && request.uri.match(options.regex.htmlEnd);
 
-    // console.log({ uri: request.uri, keyExists, isFile, isUnFriendlyUrl });
-
     let event;
     // Apply Friendly URLs if file doesn't exist
     // Do not apply any rules and Redirect
@@ -52,8 +50,9 @@ const redirectMiddleware = async (opts, handler, next) => {
     } else {
       // Gather and parse rules
       const data = await getRedirectData();
+
       // Find URI match in the rules
-      match = findMatch(data, request.uri);
+      const match = findMatch(data, request.uri);
       if (match) {
         // Match: match found
         // Use status to decide how to handle
@@ -70,10 +69,10 @@ const redirectMiddleware = async (opts, handler, next) => {
 
     handler.event = event;
   } catch (err) {
-    handler.callback(null, err);
+    throw err;
   }
 
-  return next();
+  return;
 };
 
 const isRedirectURI = status => options.redirectStatuses.includes(status);
