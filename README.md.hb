@@ -515,6 +515,7 @@ documentation](/docs/middlewares.md)
 
 ## Api
 
+{{> main}}
 
 
 ## Typescript

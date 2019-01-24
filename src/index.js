@@ -1,3 +1,1 @@
-module.exports = {
-  redirects: require('./redirects'),
-};
+module.exports = require('./reroute');

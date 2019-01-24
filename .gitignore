@@ -57,6 +57,9 @@ typings/
 # dotenv environment variables file
 .env
 
+# serverless framework
+.serverless
+
 .tern-port
 .DS_Store
 docs/
