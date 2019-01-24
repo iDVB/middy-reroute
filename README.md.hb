@@ -1,9 +1,5 @@
 <div align="center">
-  <img alt="Middy logo" src="https://raw.githubusercontent.com/middyjs/middy/master/img/middy-logo.png"/>
-</div>
-
-<div align="center">
-  <p><strong>The stylish Node.js middleware engine for AWS Lambda</strong></p>
+  <p><strong>MiddyJS (AWS Lambda) middleware providing complex redirect, rewrite and proxying capabilities.</strong></p>
 </div>
 
 <div align="center">
