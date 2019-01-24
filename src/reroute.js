@@ -267,7 +267,7 @@ const getProxyResponse = resp => {
   const response = {
     status,
     statusDescription: statusText,
-    headers,
+    // headers,
     body: JSON.stringify(data),
   };
   return response;
