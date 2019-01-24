@@ -28,6 +28,11 @@ jobs:
           name: unit tests
           command: npm test
 
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - middy-reroute/*
+
   deploy:
     docker:
       - image: circleci/node:6.10
