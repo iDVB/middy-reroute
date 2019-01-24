@@ -1,9 +1,5 @@
 <div align="center">
-  <img alt="Middy logo" src="https://raw.githubusercontent.com/middyjs/middy/master/img/middy-logo.png"/>
-</div>
-
-<div align="center">
-  <p><strong>The stylish Node.js middleware engine for AWS Lambda</strong></p>
+  <p><strong>MiddyJS (AWS Lambda) middleware providing complex redirect, rewrite and proxying capabilities.</strong></p>
 </div>
 
 <div align="center">
@@ -11,8 +7,8 @@
   <a href="http://badge.fury.io/js/middy-reroute">
     <img src="https://badge.fury.io/js/middy-reroute.svg" alt="npm version" style="max-width:100%;">
   </a>
-  <a href="https://codecov.io/gh/middyjs/middy">
-    <img src="https://codecov.io/gh/middyjs/middy/branch/master/graph/badge.svg" alt="codecov" style="max-width:100%;">
+  <a href="https://codecov.io/gh/iDVB/middy-reroute">
+    <img src="https://codecov.io/gh/iDVB/middy-reroute/branch/master/graph/badge.svg" alt="codecov" style="max-width:100%;">
   </a>
   <a href="https://snyk.io/test/github/iDVB/middy-reroute?targetFile=package.json">
     <img src="https://snyk.io/test/github/iDVB/middy-reroute/badge.svg?targetFile=package.json" alt="Known Vulnerabilities" data-canonical-src="https://snyk.io/test/github/iDVB/middy-reroute?targetFile=package.json" style="max-width:100%;">
