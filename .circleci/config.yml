@@ -49,6 +49,10 @@ jobs:
             name: configure GitHub SSH
             command: mkdir -p ~/.ssh && ssh-keyscan -H github.com > ~/.ssh/known_hosts
 
+        - add_ssh_keys:
+            fingerprints:
+              - "0b:c1:d0:5b:58:ee:b9:b1:e1:c3:be:56:56:6d:35:e4"
+              
         - run:
             working_directory: ~/middy-reroute
             name: publish
