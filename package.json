@@ -27,7 +27,7 @@
 	"files": [
 		"src",
 		"index.js",
-		"!tests"
+		"!__tests__"
 	],
 	"keywords": [
 		""

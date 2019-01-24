@@ -2,15 +2,15 @@ const fs = require('fs');
 const path = require('path');
 const middy = require('middy');
 const axios = require('axios');
-const reroute = require('../src/reroute');
+const reroute = require('../reroute');
 const STATUS_CODES = require('http').STATUS_CODES;
 
 const rules = fs.readFileSync(path.join(__dirname, '_redirects')).toString();
 const html404 = fs.readFileSync(path.join(__dirname, '404.html')).toString();
 
 jest.mock('axios');
-jest.mock('../src/s3');
-const S3 = require('../src/s3');
+jest.mock('../s3');
+const S3 = require('../s3');
 
 const eventSample = uri => ({
   Records: [
