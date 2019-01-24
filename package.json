@@ -7,7 +7,7 @@
 	"author": {
 		"name": "Dan Van Brunt",
 		"email": "me@danvanbrunt.com",
-		"url": "github.com/iDVB/middy-reroute"
+		"url": "https://github.com/iDVB/middy-reroute"
 	},
 	"engines": {
 		"node": ">=6"
