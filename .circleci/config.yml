@@ -48,7 +48,7 @@ jobs:
             working_directory: ~/middy-reroute
             name: publish
             command: |
-              npm publish && npm run release:tag;
+              npm publish;
 
 
 workflows:
