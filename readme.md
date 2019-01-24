@@ -22,7 +22,7 @@ middyReroute('unicorns');
 
 ## API
 
-### middyReroute(input, [options])
+### middyReroute([options])
 
 #### input
 

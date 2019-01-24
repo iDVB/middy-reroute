@@ -1,16 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 const middy = require('middy');
-// const axios = require('axios');
-const redirects = require('../src/redirects');
+const axios = require('axios');
+const reroute = require('../src/reroute');
 const STATUS_CODES = require('http').STATUS_CODES;
 
 const rules = fs.readFileSync(path.join(__dirname, '_redirects')).toString();
 const html404 = fs.readFileSync(path.join(__dirname, '404.html')).toString();
 
-// jest.mock('axios');
-jest.mock('../src/storageProvider');
-const S3 = require('../src/storageProvider');
+jest.mock('axios');
+jest.mock('../src/s3');
+const S3 = require('../src/s3');
 
 const eventSample = uri => ({
   Records: [
@@ -18,6 +18,45 @@ const eventSample = uri => ({
       cf: {
         request: {
           method: 'GET',
+          headers: {
+            'user-agent': [
+              {
+                key: 'User-Agent',
+                value: 'Amazon CloudFront',
+              },
+            ],
+            via: [
+              {
+                key: 'Via',
+                value:
+                  '1.1 435df4a736dacde836367e67036d6c56.cloudfront.net (CloudFront)',
+              },
+            ],
+            'accept-encoding': [
+              {
+                key: 'Accept-Encoding',
+                value: 'gzip',
+              },
+            ],
+            'upgrade-insecure-requests': [
+              {
+                key: 'upgrade-insecure-requests',
+                value: '1',
+              },
+            ],
+            'x-forwarded-for': [
+              {
+                key: 'X-Forwarded-For',
+                value: '38.99.136.178',
+              },
+            ],
+            host: [
+              {
+                key: 'Host',
+                value: 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
+              },
+            ],
+          },
           origin: {
             s3: {
               authMethod: 'origin-access-identity',
@@ -55,6 +94,35 @@ const error404Sample = body => ({
   body: body,
 });
 const axiosSample = {
+  status: 200,
+  statusText: 'OK',
+  headers: {
+    server: 'GitHub.com',
+    date: 'Wed, 23 Jan 2019 17:35:22 GMT',
+    'content-type': 'application/json; charset=utf-8',
+    'transfer-encoding': 'chunked',
+    connection: 'close',
+    status: '200 OK',
+    'x-ratelimit-limit': '60',
+    'x-ratelimit-remaining': '59',
+    'x-ratelimit-reset': '1548268522',
+    'cache-control': 'public, max-age=60, s-maxage=60',
+    vary: 'Accept',
+    etag: 'W/"99366084be4e93df287625dbcec41419"',
+    'last-modified': 'Thu, 17 Jan 2019 14:08:46 GMT',
+    'x-github-media-type': 'github.v3',
+    'access-control-expose-headers':
+      'ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type',
+    'access-control-allow-origin': '*',
+    'strict-transport-security': 'max-age=31536000; includeSubdomains; preload',
+    'x-frame-options': 'deny',
+    'x-content-type-options': 'nosniff',
+    'x-xss-protection': '1; mode=block',
+    'referrer-policy':
+      'origin-when-cross-origin, strict-origin-when-cross-origin',
+    'content-security-policy': "default-src 'none'",
+    'x-github-request-id': 'FE44:4BC6:2FD45F5:630C738:5C48A5DA',
+  },
   data: {
     login: 'iDVB',
     id: 189506,
@@ -87,68 +155,102 @@ const axiosSample = {
     followers: 14,
     following: 11,
     created_at: '2010-01-25T16:28:03Z',
-    updated_at: '2019-01-07T14:51:44Z',
-  },
-  status: 200,
-  statusText: 'OK',
-  headers: {
-    'content-type': 'application/json; charset=utf-8',
-    'x-ratelimit-limit': '60',
-    'x-ratelimit-remaining': '53',
-    'x-ratelimit-reset': '1547159078',
-    'cache-control': 'public, max-age=60, s-maxage=60',
-    etag: 'W/"dc3da1e9a5fad59509e13668ee78d493"',
-    'last-modified': 'Mon, 07 Jan 2019 14:51:44 GMT',
-    'x-github-media-type': 'github.v3',
+    updated_at: '2019-01-17T14:08:46Z',
   },
 };
-const proxySample = {
-  status: 200,
-  headers: {
-    'content-type': 'application/json; charset=utf-8',
-    'x-ratelimit-limit': '60',
-    'x-ratelimit-remaining': '53',
-    'x-ratelimit-reset': '1547159078',
-    'cache-control': 'public, max-age=60, s-maxage=60',
-    etag: 'W/"dc3da1e9a5fad59509e13668ee78d493"',
-    'last-modified': 'Mon, 07 Jan 2019 14:51:44 GMT',
-    'x-github-media-type': 'github.v3',
-  },
-  statusDescription: 'OK',
+const proxyResponseSample = {
   body: {
-    login: 'iDVB',
-    id: 189506,
-    node_id: 'MDQ6VXNlcjE4OTUwNg==',
     avatar_url: 'https://avatars1.githubusercontent.com/u/189506?v=4',
-    gravatar_id: '',
-    url: 'https://api.github.com/users/iDVB',
-    html_url: 'https://github.com/iDVB',
-    followers_url: 'https://api.github.com/users/iDVB/followers',
-    following_url: 'https://api.github.com/users/iDVB/following{/other_user}',
-    gists_url: 'https://api.github.com/users/iDVB/gists{/gist_id}',
-    starred_url: 'https://api.github.com/users/iDVB/starred{/owner}{/repo}',
-    subscriptions_url: 'https://api.github.com/users/iDVB/subscriptions',
-    organizations_url: 'https://api.github.com/users/iDVB/orgs',
-    repos_url: 'https://api.github.com/users/iDVB/repos',
-    events_url: 'https://api.github.com/users/iDVB/events{/privacy}',
-    received_events_url: 'https://api.github.com/users/iDVB/received_events',
-    type: 'User',
-    site_admin: false,
-    name: 'Dan Van Brunt',
-    company: '@KlickInc @KatalystAdvantage ',
-    blog: '',
-    location: 'Toronto, ON',
-    email: null,
-    hireable: null,
     bio:
       'Director of Technology @KlickInc \r\nDev, DevOp, Automation Advocate\r\nInto: #docker #serverless #makingiteasy',
-    public_repos: 43,
-    public_gists: 21,
-    followers: 14,
-    following: 11,
+    blog: '',
+    company: '@KlickInc @KatalystAdvantage ',
     created_at: '2010-01-25T16:28:03Z',
-    updated_at: '2019-01-07T14:51:44Z',
+    email: null,
+    events_url: 'https://api.github.com/users/iDVB/events{/privacy}',
+    followers: 14,
+    followers_url: 'https://api.github.com/users/iDVB/followers',
+    following: 11,
+    following_url: 'https://api.github.com/users/iDVB/following{/other_user}',
+    gists_url: 'https://api.github.com/users/iDVB/gists{/gist_id}',
+    gravatar_id: '',
+    hireable: null,
+    html_url: 'https://github.com/iDVB',
+    id: 189506,
+    location: 'Toronto, ON',
+    login: 'iDVB',
+    name: 'Dan Van Brunt',
+    node_id: 'MDQ6VXNlcjE4OTUwNg==',
+    organizations_url: 'https://api.github.com/users/iDVB/orgs',
+    public_gists: 21,
+    public_repos: 43,
+    received_events_url: 'https://api.github.com/users/iDVB/received_events',
+    repos_url: 'https://api.github.com/users/iDVB/repos',
+    site_admin: false,
+    starred_url: 'https://api.github.com/users/iDVB/starred{/owner}{/repo}',
+    subscriptions_url: 'https://api.github.com/users/iDVB/subscriptions',
+    type: 'User',
+    updated_at: '2019-01-17T14:08:46Z',
+    url: 'https://api.github.com/users/iDVB',
   },
+  headers: {
+    'access-control-allow-origin': {
+      key: 'access-control-allow-origin',
+      value: '*',
+    },
+    'access-control-expose-headers': {
+      key: 'access-control-expose-headers',
+      value:
+        'ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type',
+    },
+    'cache-control': {
+      key: 'cache-control',
+      value: 'public, max-age=60, s-maxage=60',
+    },
+    connection: { key: 'connection', value: 'close' },
+    'content-security-policy': {
+      key: 'content-security-policy',
+      value: "default-src 'none'",
+    },
+    'content-type': {
+      key: 'content-type',
+      value: 'application/json; charset=utf-8',
+    },
+    date: { key: 'date', value: 'Wed, 23 Jan 2019 17:35:22 GMT' },
+    etag: { key: 'etag', value: 'W/"99366084be4e93df287625dbcec41419"' },
+    'last-modified': {
+      key: 'last-modified',
+      value: 'Thu, 17 Jan 2019 14:08:46 GMT',
+    },
+    'referrer-policy': {
+      key: 'referrer-policy',
+      value: 'origin-when-cross-origin, strict-origin-when-cross-origin',
+    },
+    server: { key: 'server', value: 'GitHub.com' },
+    status: { key: 'status', value: '200 OK' },
+    'strict-transport-security': {
+      key: 'strict-transport-security',
+      value: 'max-age=31536000; includeSubdomains; preload',
+    },
+    'transfer-encoding': { key: 'transfer-encoding', value: 'chunked' },
+    vary: { key: 'vary', value: 'Accept' },
+    'x-content-type-options': {
+      key: 'x-content-type-options',
+      value: 'nosniff',
+    },
+    'x-frame-options': { key: 'x-frame-options', value: 'deny' },
+    'x-github-media-type': { key: 'x-github-media-type', value: 'github.v3' },
+    'x-github-request-id': {
+      key: 'x-github-request-id',
+      value: 'FE44:4BC6:2FD45F5:630C738:5C48A5DA',
+    },
+    'x-ratelimit-limit': { key: 'x-ratelimit-limit', value: '60' },
+    'x-ratelimit-remaining': { key: 'x-ratelimit-remaining', value: '59' },
+    'x-ratelimit-reset': { key: 'x-ratelimit-reset', value: '1548268522' },
+    'x-xss-protection': { key: 'x-xss-protection', value: '1; mode=block' },
+  },
+  status: 200,
+  statusDescription: 'OK',
 };
 
 describe('📦 Middleware Redirects', () => {
@@ -157,6 +259,8 @@ describe('📦 Middleware Redirects', () => {
     S3.headObject.mockClear();
     S3.getObject.mockReset();
     S3.getObject.mockClear();
+    axios.mockReset();
+    axios.mockClear();
   });
 
   const testScenario = (
@@ -185,13 +289,27 @@ describe('📦 Middleware Redirects', () => {
     });
 
     const handler = middy((event, context, cb) => cb(null, event));
-    handler.use(redirects(midOptions));
+    handler.use(reroute(midOptions));
     handler(request, {}, (err, event) => {
       if (err) throw err;
       callback(event);
       done();
     });
   };
+
+  test('Root route should work', done => {
+    testScenario(
+      eventSample('/'),
+      event => {
+        expect(event).toEqual(eventSample('/index.html'));
+      },
+      done,
+      {
+        noFiles: ['/'],
+        fileContents: { _redirect: rules, '404.html': html404 },
+      },
+    );
+  });
 
   test('Redirect should work', done => {
     testScenario(
@@ -264,16 +382,19 @@ describe('📦 Middleware Redirects', () => {
     );
   });
 
-  // test('Rewrites w/o file OR custom 404 should pass-through', done => {
-  //   testScenario(
-  //     { rules },
-  //     eventSample('/stuff/'),
-  //     event => {
-  //       expect(event).toEqual(eventSample('/nofilehere/index.html'));
-  //     },
-  //     done,
-  //   );
-  // });
+  test('Rewrites w/o file OR custom 404 should pass-through', done => {
+    testScenario(
+      eventSample('/stuff/'),
+      event => {
+        expect(event).toEqual(eventSample('/nofilehere/index.html'));
+      },
+      done,
+      {
+        noFiles: ['/nofilehere/index.html', '404.html'],
+        fileContents: { _redirect: rules },
+      },
+    );
+  });
 
   test('Trailing slash normalization should work', done => {
     testScenario(
@@ -373,17 +494,16 @@ describe('📦 Middleware Redirects', () => {
     );
   });
 
-  // test('Proxying should work', done => {
-  //   axios.get.mockImplementation(() => Promise.resolve(axiosSample));
-  //   testScenario(
-  //     { rules },
-  //     eventSample('/api/users/iDVB'),
-  //     event => {
-  //       expect(event).toEqual(eventSample('/api/users/iDVB'));
-  //     },
-  //     done,
-  //   );
-  // });
+  test('Proxying should work', done => {
+    axios.mockImplementation(() => Promise.resolve(axiosSample));
+    testScenario(
+      eventSample('/api/users/iDVB'),
+      event => {
+        expect(event).toEqual(proxyResponseSample);
+      },
+      done,
+    );
+  });
 
   // test('Catch-all should work', done => {
   //   testScenario(

@@ -1,8 +1,11 @@
-const STATUS_CODES = require('http').STATUS_CODES,
-  S3 = require('./storageProvider'),
+const logger = require('./utils/logger'),
+  STATUS_CODES = require('http').STATUS_CODES,
+  S3 = require('./s3'),
+  axios = require('axios'),
   merge = require('./utils/deepmerge'),
   _find = require('lodash.find'),
   _reduce = require('lodash.reduce'),
+  _omit = require('lodash.omit'),
   { parse } = require('url'),
   path = require('path'),
   route = require('path-match')({
@@ -11,8 +14,26 @@ const STATUS_CODES = require('http').STATUS_CODES,
     end: true,
   });
 
+const blacklistedHeaders = [
+  'Connection',
+  'Expect',
+  'Keep-alive',
+  'Proxy-Authenticate',
+  'Proxy-Authorization',
+  'Proxy-Connection',
+  'Trailer',
+  'Upgrade',
+  'X-Accel-Buffering',
+  'X-Accel-Charset',
+  'X-Accel-Limit-Rate',
+  'X-Accel-Redirect',
+  'X-Cache',
+  'X-Forwarded-Proto',
+  'X-Real-IP',
+];
+
 let options;
-const redirectMiddleware = async (opts = {}, handler, next) => {
+const rerouteMiddleware = async (opts = {}, handler, next) => {
   const { request } = handler.event.Records[0].cf;
   const { origin } = request;
   const defaults = {
@@ -30,10 +51,14 @@ const redirectMiddleware = async (opts = {}, handler, next) => {
     custom404: `404.html`,
   };
   options = merge(defaults, opts);
+  logger('options', options);
+
+  logger('REQUEST.URI: ', request.uri);
 
   try {
     // Check if file exists
     const keyExists = await doesKeyExist(request.uri);
+
     // Check if there is a file with extension at the end of the path
     const isFile = path.extname(request.uri) !== '';
     // Detect if needing friendly URLs
@@ -46,7 +71,9 @@ const redirectMiddleware = async (opts = {}, handler, next) => {
     if (!keyExists && isUnFriendlyUrl) {
       const [first, fullpath, file, filename] = isUnFriendlyUrl;
       const end = filename === 'index' ? '' : `${filename}/`;
-      event = redirect(`${fullpath}/${end}`, 301);
+      const finalKey = `${fullpath}/${end}`;
+      logger('UN-FriendlyURL [from:to]: ', request.uri, finalKey);
+      event = redirect(finalKey, 301);
     } else {
       // Gather and parse rules
       const data = await getRedirectData();
@@ -54,12 +81,16 @@ const redirectMiddleware = async (opts = {}, handler, next) => {
       // Find URI match in the rules
       const match = findMatch(data, request.uri);
       if (match) {
+        logger('Match FOUND: ', match.parsedTo);
         // Match: match found
         // Use status to decide how to handle
         event = isRedirectURI(match.status)
           ? redirect(match.parsedTo, match.status)
+          : isAbsoluteURI(match.parsedTo)
+          ? await proxy(match.parsedTo, handler.event)
           : await rewrite(forceDefaultDoc(match.parsedTo), handler.event);
       } else {
+        logger('NO Match');
         // Pass-Through: No match, so other then DefaultDoc, let it pass through
         event = !isFile
           ? await rewrite(forceDefaultDoc(request.uri), handler.event)
@@ -72,6 +103,7 @@ const redirectMiddleware = async (opts = {}, handler, next) => {
     throw err;
   }
 
+  logger('RETURNING EVENT!!!!');
   return;
 };
 
@@ -87,8 +119,9 @@ const findMatch = (data, uri) => {
   return match && { ...match, parsedTo: replaceAll(params, match.to) };
 };
 
-const getRedirectData = () =>
-  options.rules
+const getRedirectData = () => {
+  logger('Getting Rules from: ', options.rules ? 'Options' : 'S3');
+  return options.rules
     ? parseRules(options.rules)
     : S3.getObject({
         Bucket: options.bucketName,
@@ -96,6 +129,7 @@ const getRedirectData = () =>
       })
         .promise()
         .then(data => parseRules(data.Body.toString()));
+};
 
 const parseRules = stringFile =>
   stringFile
@@ -131,82 +165,146 @@ const replaceSplats = (obj, pattern) =>
   );
 
 const doesKeyExist = key => {
-  // console.log({ key: key.replace(/^\/+/, '') });
   return S3.headObject({
     Bucket: options.bucketName,
     Key: key.replace(/^\/+/, ''),
   })
     .promise()
-    .then(data => true)
+    .then(data => {
+      logger('Key FOUND: ', key);
+      return true;
+    })
     .catch(err => {
       if (err.statusCode === 404) {
+        logger('Key NOT Found: ', key);
         return false;
       }
       throw err;
     });
 };
 
-const redirect = (to, status) => ({
-  status,
-  statusDescription: STATUS_CODES[status],
-  headers: {
-    location: [{ key: 'Location', value: to }],
-  },
-});
+const redirect = (to, status) => {
+  logger('Redirecting: ', to, status);
+  return {
+    status,
+    statusDescription: STATUS_CODES[status],
+    headers: {
+      location: [{ key: 'Location', value: to }],
+    },
+  };
+};
 
 const rewrite = async (to, event) => {
-  // console.log({
-  //   to,
-  //   isAbsoluteTo: !isAbsoluteTo(to),
-  //   doesKeyExist: !(await doesKeyExist(to)),
-  //   test404: await get404Response(),
-  // });
-
+  logger('Rewriting: ', to);
   const resp =
-    (!isAbsoluteTo(to) &&
+    (!isAbsoluteURI(to) &&
       !(await doesKeyExist(to)) &&
       (await get404Response())) ||
     merge(event, { Records: [{ cf: { request: { uri: to } } }] });
-
-  // console.log({ resp });
-
   return resp;
 };
 
-const isAbsoluteTo = to => /^(?:[a-z]+:)?\/\//.test(to);
+const proxy = (url, event) => {
+  logger('PROXY start: ', url);
+  const { request } = event.Records[0].cf;
+  const config = lambdaReponseToObj(request);
+  logger('PROXY config: ', config);
+  return axios(url, config)
+    .then(data => {
+      logger('PROXY data: ', _omit(data, ['request', 'config']));
+      return getProxyResponse(data);
+    })
+    .catch(err => {
+      logger('PROXY err: ', err);
+      throw err;
+    });
+};
+
+const lambdaReponseToObj = req => {
+  const { method, body } = req;
+  return {
+    method,
+    headers: _omit(
+      _reduce(
+        req.headers,
+        (result, value, key) => ({ ...result, [value[0].key]: value[0].value }),
+        {},
+      ),
+      ['Host'],
+    ),
+  };
+};
+
+const isAbsoluteURI = to => {
+  const test = /^(?:[a-z]+:)?\/\//.test(to);
+  logger('isAbsoluteURI: ', test, to);
+  return test;
+};
 
 const forceDefaultDoc = uri =>
   path.extname(uri) === '' ? path.join(uri, options.defaultDoc) : uri;
 
+const getProxyResponse = resp => {
+  const { status, statusText, data } = resp;
+  logger('getProxyResponse raw headers: ', resp.headers);
+  const headers = _omit(
+    _reduce(
+      resp.headers,
+      (result, value, key) => ({
+        ...result,
+        [key]: [
+          {
+            key: key.replace(/(?<=-{1})(?:.)|^(?:.){1}/g, v => v.toUpperCase()),
+            value: resp.headers[key],
+          },
+        ],
+      }),
+      {},
+    ),
+    blacklistedHeaders,
+  );
+  logger('getProxyResponse parse headers: ', headers);
+  const response = {
+    status,
+    statusDescription: statusText,
+    headers,
+    body: JSON.stringify(data),
+  };
+  return response;
+};
+
 const get404Response = () => {
-  // console.log('get404Response');
   return S3.getObject({
     Bucket: options.bucketName,
     Key: options.custom404,
   })
     .promise()
-    .then(({ Body }) => ({
-      status: '404',
-      statusDescription: STATUS_CODES['404'],
-      headers: {
-        'content-type': [
-          {
-            key: 'Content-Type',
-            value: 'text/html',
-          },
-        ],
-      },
-      body: Body.toString(),
-    }))
+    .then(({ Body }) => {
+      logger('Custom 404 FOUND');
+      return {
+        status: '404',
+        statusDescription: STATUS_CODES['404'],
+        headers: {
+          'content-type': [
+            {
+              key: 'Content-Type',
+              value: 'text/html',
+            },
+          ],
+        },
+        body: Body.toString(),
+      };
+    })
     .catch(err => {
       if (err.statusCode === 404) {
+        logger('Custom 404 NOT Found');
         return false;
       }
+      logger('Custom 404 Exists');
       throw err;
     });
 };
 
 module.exports = opts => ({
-  before: redirectMiddleware.bind(null, opts),
-  // onError: redirectMiddleware.bind(null, opts),
+  before: rerouteMiddleware.bind(null, opts),
 });
