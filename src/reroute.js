@@ -6,6 +6,7 @@ const logger = require('./utils/logger'),
   _find = require('lodash.find'),
   _reduce = require('lodash.reduce'),
   _omit = require('lodash.omit'),
+  _omitBy = require('lodash.omitby'),
   { parse } = require('url'),
   path = require('path'),
   route = require('path-match')({
@@ -13,24 +14,6 @@ const logger = require('./utils/logger'),
     strict: false,
     end: true,
   });
-
-const blacklistedHeaders = [
-  'Connection',
-  'Expect',
-  'Keep-alive',
-  'Proxy-Authenticate',
-  'Proxy-Authorization',
-  'Proxy-Connection',
-  'Trailer',
-  'Upgrade',
-  'X-Accel-Buffering',
-  'X-Accel-Charset',
-  'X-Accel-Limit-Rate',
-  'X-Accel-Redirect',
-  'X-Cache',
-  'X-Forwarded-Proto',
-  'X-Real-IP',
-];
 
 let options;
 const rerouteMiddleware = async (opts = {}, handler, next) => {
@@ -106,6 +89,40 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
   logger('RETURNING EVENT!!!!');
   return;
 };
+
+const blacklistedHeaders = {
+  exact: [
+    'Connection',
+    'Expect',
+    'Keep-alive',
+    'Proxy-Authenticate',
+    'Proxy-Authorization',
+    'Proxy-Connection',
+    'Trailer',
+    'Upgrade',
+    'X-Accel-Buffering',
+    'X-Accel-Charset',
+    'X-Accel-Limit-Rate',
+    'X-Accel-Redirect',
+    'X-Cache',
+    'X-Forwarded-Proto',
+    'X-Real-IP',
+    'Accept-Encoding',
+    'Content-Length',
+    'If-Modified-Since',
+    'If-None-Match',
+    'If-Range',
+    'If-Unmodified-Since',
+    'Range',
+    'Transfer-Encoding',
+    'Via',
+  ],
+  startsWith: ['X-Amzn-', 'X-Amz-Cf-', 'X-Edge-'],
+};
+
+const isBlacklistedProperty = name =>
+  blacklistedHeaders.exact.includes(name) ||
+  !!blacklistedHeaders.startsWith.find(i => name.startsWith(i));
 
 const isRedirectURI = status => options.redirectStatuses.includes(status);
 
@@ -207,7 +224,7 @@ const rewrite = async (to, event) => {
 const proxy = (url, event) => {
   logger('PROXY start: ', url);
   const { request } = event.Records[0].cf;
-  const config = lambdaReponseToObj(request);
+  const config = {...lambdaReponseToObj(request), validateStatus: null};
   logger('PROXY config: ', config);
   return axios(url, config)
     .then(data => {
@@ -247,7 +264,7 @@ const forceDefaultDoc = uri =>
 const getProxyResponse = resp => {
   const { status, statusText, data } = resp;
   logger('getProxyResponse raw headers: ', resp.headers);
-  const headers = _omit(
+  const headers = _omitBy(
     _reduce(
       resp.headers,
       (result, value, key) => ({
@@ -261,13 +278,13 @@ const getProxyResponse = resp => {
       }),
       {},
     ),
-    blacklistedHeaders,
+    (value, key) => isBlacklistedProperty(value[0].key),
   );
   logger('getProxyResponse parse headers: ', headers);
   const response = {
     status,
     statusDescription: statusText,
-    // headers,
+    headers,
     body: JSON.stringify(data),
   };
   return response;
