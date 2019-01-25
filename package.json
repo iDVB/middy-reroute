@@ -1,6 +1,6 @@
 {
 	"name": "middy-reroute",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"description": "A middyjs middleware implementation of Netlify's redirects functionality.",
 	"license": "MIT",
 	"repository": "iDVB/middy-reroute",
@@ -16,8 +16,8 @@
 		"test:lint": "eslint --ignore-pattern='node_modules/' --ignore-pattern='coverage/' --ignore-pattern='docs/' .",
 		"test:unit": "jest --verbose --coverage",
 		"test:unit:watch": "jest --verbose --coverage --watch",
-    "test": "npm run test:lint && npm run test:unit",
-    "jest": "jest",
+		"test": "npm run test:lint && npm run test:unit",
+		"jest": "jest",
 		"build:readme": "jsdoc2md --global-index-format grouped --template README.md.hb src/* > README.md",
 		"build:docs": "jsdoc --readme README.md --package package.json --destination docs src",
 		"build:lib": "rollup -c",
