@@ -13,7 +13,7 @@
 		"node": ">=8"
 	},
 	"scripts": {
-		"test:lint": "eslint --ignore-pattern='node_modules/' --ignore-pattern='coverage/' --ignore-pattern='docs/' .",
+		"test:lint": "eslint .",
 		"test:unit": "jest --verbose --coverage",
 		"test:unit:watch": "jest --verbose --coverage --watch",
 		"test": "npm run test:lint && npm run test:unit",
@@ -28,9 +28,8 @@
 	"main": "lib/reroute.js",
 	"module": "lib/reroute.esm.js",
 	"files": [
-		"src",
-		"index.js",
-		"!__tests__"
+		"lib",
+		"README.md"
 	],
 	"keywords": [
 		""

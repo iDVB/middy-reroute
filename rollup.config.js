@@ -1,5 +1,6 @@
 // plugins that we are going to use
 import babel from 'rollup-plugin-babel';
+import pkg from './package.json';
 
 // list of plugins used during building process
 const plugins = targets => [
@@ -31,7 +32,7 @@ export default [
       // name visible for other scripts
       name: 'middyReroute',
       // output file location
-      file: 'lib/reroute.esm.js',
+      file: pkg.module,
       // format of generated JS file, also: esm, and others are available
       format: 'esm',
       // add sourcemaps
@@ -45,7 +46,7 @@ export default [
     input: 'src/index.js',
     output: {
       name: 'middyReroute',
-      file: 'lib/reroute.js',
+      file: pkg.main,
       format: 'cjs',
       sourcemap: true,
     },
