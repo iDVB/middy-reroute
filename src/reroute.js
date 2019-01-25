@@ -224,7 +224,7 @@ const rewrite = async (to, event) => {
 const proxy = (url, event) => {
   logger('PROXY start: ', url);
   const { request } = event.Records[0].cf;
-  const config = {...lambdaReponseToObj(request), validateStatus: null};
+  const config = { ...lambdaReponseToObj(request), validateStatus: null };
   logger('PROXY config: ', config);
   return axios(url, config)
     .then(data => {
