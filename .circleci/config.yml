@@ -1,5 +1,42 @@
 version: 2
 jobs:
+  build_node6:
+    docker:
+      - image: circleci/node:6.10
+
+    working_directory: ~/middy-reroute
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+          - v1-dependencies-v6-{{ checksum "package.json" }}
+          - v1-dependencies-v6-
+          - v1-dependencies-
+
+      - run:
+          name: install dependencies
+          command: npm install
+
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-v6-{{ checksum "package.json" }}
+
+      - run:
+          name: unit tests
+          command: npm test
+
+      - run:
+          name: coverage reporting
+          command: npm run coverage:submit
+
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - middy-reroute/*
+
   build_node8:
     docker:
       - image: circleci/node:8.10
@@ -27,11 +64,6 @@ jobs:
       - run:
           name: unit tests
           command: npm test
-
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - middy-reroute/*
 
   deploy:
     docker:
@@ -65,9 +97,12 @@ workflows:
 
   build_test_deploy:
     jobs:
+        - build_node6
         - build_node8
+        # we only deploy if build_node6 && build_node8 both succeed and if on master.
         - deploy:
             requires:
+                - build_node6
                 - build_node8
             filters:
                 branches:

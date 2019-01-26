@@ -1,16 +1,16 @@
-const fs = require('fs');
-const path = require('path');
-const middy = require('middy');
-const axios = require('axios');
-const reroute = require('../reroute');
-const STATUS_CODES = require('http').STATUS_CODES;
+import fs from 'fs';
+import path from 'path';
+import middy from 'middy';
+import axios from 'axios';
+import reroute from '..';
+import { STATUS_CODES } from 'http';
 
 const rules = fs.readFileSync(path.join(__dirname, '_redirects')).toString();
 const html404 = fs.readFileSync(path.join(__dirname, '404.html')).toString();
 
 jest.mock('axios');
 jest.mock('../s3');
-const S3 = require('../s3');
+import S3 from '../s3';
 
 const eventSample = uri => ({
   Records: [
@@ -313,20 +313,18 @@ describe('📦 Middleware Redirects', () => {
     },
     midOptions = { rules },
   ) => {
-    S3.headObject.mockImplementation(({ Key }) => {
-      return {
-        promise: () =>
-          testOptions.noFiles.includes(Key)
-            ? Promise.reject({ statusCode: 404 })
-            : Promise.resolve({ statusCode: 200 }),
-      };
-    });
-    S3.getObject.mockImplementation(({ Key }) => {
-      const resp = { Body: testOptions.fileContents[Key] };
-      return {
-        promise: () => Promise.resolve(resp),
-      };
-    });
+    S3.headObject.mockImplementation(({ Key }) => ({
+      promise: () =>
+        testOptions.noFiles.includes(Key)
+          ? Promise.reject({ statusCode: 404 })
+          : Promise.resolve({ statusCode: 200 }),
+    }));
+    S3.getObject.mockImplementation(({ Key }) => ({
+      promise: () =>
+        testOptions.noFiles.includes(Key)
+          ? Promise.reject({ statusCode: 404 })
+          : Promise.resolve({ Body: testOptions.fileContents[Key] }),
+    }));
 
     const handler = middy((event, context, cb) => cb(null, event));
     handler.use(reroute(midOptions));
@@ -430,7 +428,7 @@ describe('📦 Middleware Redirects', () => {
       },
       done,
       {
-        noFiles: ['/nofilehere/index.html', '404.html'],
+        noFiles: ['nofilehere/index.html', '404.html'],
         fileContents: { _redirect: rules },
       },
     );
@@ -502,16 +500,19 @@ describe('📦 Middleware Redirects', () => {
     );
   });
 
-  // test('Custom 404s should work', done => {
-  //   testScenario(
-  //     { rules },
-  //     eventSample('/ecommerce'),
-  //     event => {
-  //       expect(event).toEqual(eventSample('/store-closed'));
-  //     },
-  //     done,
-  //   );
-  // });
+  test('Custom 404 missing should pass-through', done => {
+    testScenario(
+      eventSample('/ecommerce'),
+      event => {
+        expect(event).toEqual(eventSample('/store-closed/index.html'));
+      },
+      done,
+      {
+        noFiles: ['store-closed/index.html', '404.html'],
+        fileContents: { _redirect: rules },
+      },
+    );
+  });
 
   test('PrettyURLs should work', done => {
     testScenario(
@@ -556,5 +557,3 @@ describe('📦 Middleware Redirects', () => {
   //   );
   // });
 });
-
-//  /photos/*    /images/*    200!

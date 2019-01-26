@@ -1,17 +1,15 @@
-const merge = require('deepmerge');
+import merge from 'deepmerge';
 
-module.exports = (x, y, { arrayMerge, ...rest } = {}) =>
+const deepmerge = (x, y, { arrayMerge, ...rest } = {}) =>
   merge(x, y, { ...rest, arrayMerge: arrayMerge || combineMerge });
 
-module.exports.all = (arr, { arrayMerge, ...rest } = {}) =>
+const all = (arr, { arrayMerge, ...rest } = {}) =>
   merge.all(arr, { ...rest, arrayMerge: arrayMerge || combineMerge });
 
 const emptyTarget = value => (Array.isArray(value) ? [] : {});
 const clone = (value, options) => merge(emptyTarget(value), value, options);
-
 const combineMerge = (target, source, options) => {
   const destination = target.slice();
-
   source.forEach((e, i) => {
     if (typeof destination[i] === 'undefined') {
       const cloneRequested = options.clone !== false;
@@ -25,3 +23,6 @@ const combineMerge = (target, source, options) => {
   });
   return destination;
 };
+
+export default deepmerge;
+export { all };
