@@ -303,16 +303,19 @@ describe('📦 Middleware Redirects', () => {
     axios.mockClear();
   });
 
-  const testScenario = (
-    request,
-    callback,
-    done,
-    testOptions = {
-      noFiles: [`nofilehere/index.html`, `pretty/things.html`],
-      fileContents: { _redirect: rules, '404.html': html404 },
-    },
-    midOptions = { rules },
-  ) => {
+  const testScenario = (request, callback, done, testOpt, midOpt) => {
+    const testOptions = {
+      ...{
+        noFiles: [`nofilehere/index.html`, `pretty/things.html`],
+        fileContents: { _redirects: rules, '404.html': html404 },
+      },
+      ...testOpt,
+    };
+    const midOptions = {
+      ...{},
+      ...midOpt,
+    };
+
     S3.headObject.mockImplementation(({ Key }) => ({
       promise: () =>
         testOptions.noFiles.includes(Key)
@@ -344,7 +347,6 @@ describe('📦 Middleware Redirects', () => {
       done,
       {
         noFiles: ['/'],
-        fileContents: { _redirect: rules, '404.html': html404 },
       },
     );
   });
@@ -429,7 +431,6 @@ describe('📦 Middleware Redirects', () => {
       done,
       {
         noFiles: ['nofilehere/index.html', '404.html'],
-        fileContents: { _redirect: rules },
       },
     );
   });
@@ -509,7 +510,6 @@ describe('📦 Middleware Redirects', () => {
       done,
       {
         noFiles: ['store-closed/index.html', '404.html'],
-        fileContents: { _redirect: rules },
       },
     );
   });

@@ -1,5 +1,5 @@
 <div align="center">
-  <p><strong>middy-reroute is a [MiddyJS](https://github.com/middyjs/middy) middleware (AWS Lambda) providing complex redirect, rewrite and proxying capabilities by simply placing a rules file into your S3 bucket.</strong></p>
+  <p><strong>middy-reroute is a <a href="https://github.com/middyjs/middy">MiddyJS</a> middleware (AWS Lambda) providing complex redirect, rewrite and proxying capabilities by simply placing a rules file into your S3 bucket.</strong></p>
 </div>
 
 <div align="center">
@@ -59,7 +59,7 @@ You will also need the core middyjs middleware engine.
 
 While most of middy's middlewares have been written for use with AWS Lambda + API Gateway, middy-reroute work **exclusively** with [Lambda@Edge](https://docs.aws.amazon.com/lambda/latest/dg/lambda-edge.html). This is due to the fact that the middleware needs to run at the edge CDN so that it can intercept requests made to your origin (S3).
 
-Not familiar with Lambda@Edge? No worries, it's easier then it sounds, and there are many great tutorials and courses. Full disclosure, I'm the author of that course.
+Not familiar with Lambda@Edge? No worries, it's easier then it sounds, and there are many great tutorials and courses. Full disclosure, I'm the author of [this course](https://acloud.guru/learn/lambda-edge).
 
 ## Usage
 
