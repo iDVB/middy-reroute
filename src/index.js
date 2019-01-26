@@ -261,6 +261,12 @@ const isAbsoluteURI = to => {
   return test;
 };
 
+const capitalizeParam = param =>
+  param
+    .split('-')
+    .map(i => i.charAt(0).toUpperCase() + i.slice(1))
+    .join('-');
+
 const forceDefaultDoc = uri =>
   path.extname(uri) === '' ? path.join(uri, options.defaultDoc) : uri;
 
@@ -274,7 +280,7 @@ const getProxyResponse = resp => {
         ...result,
         [key]: [
           {
-            key: key.replace(/(?<=-{1})(?:.)|^(?:.){1}/g, v => v.toUpperCase()),
+            key: capitalizeParam(key),
             value: resp.headers[key],
           },
         ],
