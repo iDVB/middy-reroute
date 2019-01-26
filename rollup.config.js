@@ -12,9 +12,9 @@ const plugins = targets => [
     babelrc: false,
     // use recommended babel-preset-env without es modules enabled
     // and with possibility to set custom targets e.g. { node: '8' }
-    presets: [['env', { modules: false, targets }]],
+    presets: [['@babel/preset-env', { modules: false, targets }]],
     // solve a problem with spread operator transpilation https://github.com/rollup/rollup/issues/281
-    plugins: ['babel-plugin-transform-object-rest-spread'],
+    plugins: ['@babel/plugin-proposal-object-rest-spread'],
     // removes comments from output
     comments: true,
   }),
