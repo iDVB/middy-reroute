@@ -227,9 +227,9 @@ const rewrite = async (to, event) => {
 const proxy = (url, event) => {
   logger('PROXY start: ', url);
   const { request } = event.Records[0].cf;
-  const config = { ...lambdaReponseToObj(request), validateStatus: null };
+  const config = { ...lambdaReponseToObj(request), validateStatus: null, url };
   logger('PROXY config: ', config);
-  return axios(url, config)
+  return axios(config)
     .then(data => {
       logger('PROXY data: ', _omit(data, ['request', 'config']));
       return getProxyResponse(data);
@@ -324,10 +324,9 @@ const get404Response = () => {
     .catch(err => {
       if (err.statusCode === 404) {
         logger('Custom 404 NOT Found');
-        return false;
       }
-      logger('Custom 404 Exists');
-      throw err;
+      logger('Get404ResponseErr', err);
+      return false;
     });
 };
 
