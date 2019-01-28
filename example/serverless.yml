@@ -30,8 +30,7 @@ functions:
     package:
       include:
         - functions/reroute/**/*
-        # - middy-reroute/lib/**/*
-        # - middy-reroute/node_modules/**/*
+        - symlink_to_module/**/*
 
 
 resources:
