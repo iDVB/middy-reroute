@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "middy": "^0.20.4"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.395.0",
+    "serverless-scriptable-plugin": "^0.8.0"
+  }
+}

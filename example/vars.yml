@@ -1,0 +1,12 @@
+default: &default
+  STAGE: ${opt:stage, 'dev'}
+  STACKNAME: ${self:service}-${self:custom.vars.STAGE}
+  TAGS:
+    - Key: STAGE
+      Value: ${self:custom.vars.STAGE}
+    - Key: SERVICE
+      Value: ${self:service}
+
+dev:
+  <<: [*default]
+  STAGE_FLAG: dev

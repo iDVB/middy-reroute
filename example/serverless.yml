@@ -1,0 +1,165 @@
+service: middy-reroute-example
+
+frameworkVersion: ">=1.9.0 <2.0.0"
+
+custom:
+  vars: ${file(vars.yml):${opt:stage, self:provider.stage}, file(vars.yml):dev}
+scriptHooks:
+  after:deploy:deploy:
+    - sh ./scripts/deploy_static_files.sh ${self:custom.vars.STACKNAME}
+  before:remove:remove:
+    - sh ./scripts/remove_static_files.sh ${self:custom.vars.STACKNAME}
+
+provider:
+  name: aws
+  region: us-east-1
+  runtime: nodejs8.10
+  stackTags:
+    STAGE: ${self:custom.vars.STAGE}
+    SERVICE: ${self:service}
+
+functions:
+  reroute:
+    handler: functions/reroute/index.handler
+    memorySize: 128
+    timeout: 5
+    role: RerouteRole
+    lambdaAtEdge:
+      - distribution: WebsiteDistribution
+        eventType: origin-request
+    package:
+      include:
+        - functions/reroute/**/*
+        # - middy-reroute/lib/**/*
+        # - middy-reroute/node_modules/**/*
+
+
+resources:
+  Description: middy-reroute example
+  Resources:
+    CloudfrontOAI:
+      Type: "AWS::CloudFront::CloudFrontOriginAccessIdentity"
+      Properties:
+        CloudFrontOriginAccessIdentityConfig:
+          Comment: Created for ${self:custom.vars.STACKNAME} 
+    DefaultBucket:
+      Type: "AWS::S3::Bucket"
+      Properties:
+        AccessControl: Private
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        Tags: ${self:custom.vars.TAGS}
+    RerouteRole:
+      Type: AWS::IAM::Role
+      Properties:
+        Path: /
+        RoleName: ${self:custom.vars.STACKNAME}-reroute
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - edgelambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: ${self:custom.vars.STACKNAME}-reroute
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                    - logs:DescribeLogStreams
+                  Resource: "arn:aws:logs:*:*:*"
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                    - s3:ListBucket
+                  Resource:
+                    - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}]]}
+                    - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}, "/*"]]}
+    BucketPolicy:
+      Type: "AWS::S3::BucketPolicy"
+      Properties:
+        Bucket: {Ref: DefaultBucket}
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                CanonicalUser: {"Fn::GetAtt": [CloudfrontOAI, S3CanonicalUserId]}
+              Action:
+                - s3:ListBucket
+                - s3:GetObject
+              Resource:
+                - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}]]}
+                - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}, "/*"]]}
+    WebsiteDistribution:
+      Type: "AWS::CloudFront::Distribution"
+      Properties:
+        DistributionConfig:
+          ViewerCertificate:
+            CloudFrontDefaultCertificate: true
+          Enabled: true
+          HttpVersion: http2
+          PriceClass: PriceClass_100
+          IPV6Enabled: true
+          DefaultCacheBehavior:
+            AllowedMethods:
+              - DELETE
+              - GET
+              - HEAD
+              - OPTIONS
+              - PATCH
+              - POST
+              - PUT
+            CachedMethods:
+              - GET
+              - HEAD
+            Compress: true
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none
+            DefaultTTL: 0
+            MaxTTL: 0
+            MinTTL: 0
+            # PathPattern: String
+            # SmoothStreaming: Boolean
+            TargetOriginId: WebsiteBucketOrigin
+            # TrustedSigners:
+            #   - String
+            ViewerProtocolPolicy: redirect-to-https
+          Origins:
+            - DomainName: {"Fn::GetAtt": [DefaultBucket, DomainName]}
+              Id: WebsiteBucketOrigin
+              S3OriginConfig:
+                OriginAccessIdentity: {"Fn::Join": ["", ["origin-access-identity/cloudfront/", {Ref: CloudfrontOAI}]]}
+        Tags: ${self:custom.vars.TAGS}
+
+  Outputs:
+    SiteUrl:
+      Value: {"Fn::Join": ["", ["https://", {"Fn::GetAtt": [WebsiteDistribution, DomainName]}]]}
+      Description: URL of the website
+    WebsiteBucket:
+      Value: {Ref: DefaultBucket}
+      Description: ID of the S3 bucket hosting the static files
+    DistributionId:
+      Value: {Ref: WebsiteDistribution}
+      Description: ID of the Website Distribution
+
+
+plugins:
+  - serverless-plugin-cloudfront-lambda-edge
+  - serverless-print-dots
+
+package:
+  individually: true
+  exclude:
+    - "**/*"

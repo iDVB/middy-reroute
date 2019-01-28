@@ -1,0 +1,73 @@
+<html>
+  <head>
+    <style>
+      html, body {
+        font-family: helvetica;
+        color: silver;
+        text-align: center;
+        background-color: #333333;
+        font-size: 1.8em;
+        padding-top: 2em;
+      }
+      body {
+        padding: 1em 0;
+      }
+      h5 {
+        margin-bottom: 0;
+      }
+      ul {
+        margin: 0;
+        list-style: none;
+        font-size: 0.6em;
+      }
+      a,a:link,a:active,a:visited,a:hover {
+        color: white;
+      }
+    </style>
+    <title>middy-reroute</title>
+  </head>
+  <body>
+
+    <h2>middy-reroute</h2>
+    <h5>Basic Redirects:</h5>
+    <ul>
+      <li><a href="/internal1">/internal1</a></li>
+      <li><a href="/internal3">/internal3</a></li>
+      <li><a href="/internal5">/internal5</a></li>
+      <li><a href="/internal7">/internal7</a></li>
+      <li><a href="/internal9">/internal9</a></li>
+    </ul>
+
+    <h5>Rewrites:</h5>
+    <ul>
+      <li><a href="/news">/news</a></li>
+      <li><a href="/stuff">/stuff</a></li>
+    </ul>
+
+    <h5>Trailing Slashes:</h5>
+    <ul>
+      <li><a href="/stuff">/stuff</a></li>
+      <li><a href="/stuff/">/stuff/</a></li>
+    </ul>
+
+    <h5>Placeholders / Splats:</h5>
+    <ul>
+      <li><a href="/news/2004/02/12/my-story">/news/2004/02/12/my-story</a></li>
+      <li><a href="/articles/2004/02/12/my-story">/articles/2004/02/12/my-story</a></li>
+      <li><a href="/shop/2004/01/10/my-story">/shop/2004/01/10/my-story</a></li>
+    </ul>
+
+    <h5>PrettyURLs:</h5>
+    <ul>
+      <li><a href="/pretty/things.html">/pretty/things.html</a></li>
+      <li><a href="/something/about.html">/something/about.html</a></li>
+    </ul>
+
+    <h5>Proxying:</h5>
+    <ul>
+      <li><a href="/api/users/iDVB">/api/users/iDVB</a></li>
+    </ul>
+
+
+  </body>
+</html>

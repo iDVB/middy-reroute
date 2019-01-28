@@ -319,13 +319,13 @@ describe('📦 Middleware Redirects', () => {
     S3.headObject.mockImplementation(({ Key }) => ({
       promise: () =>
         testOptions.noFiles.includes(Key)
-          ? Promise.reject({ statusCode: 404 })
+          ? Promise.reject({ errorType: 'NoSuchKey' })
           : Promise.resolve({ statusCode: 200 }),
     }));
     S3.getObject.mockImplementation(({ Key }) => ({
       promise: () =>
         testOptions.noFiles.includes(Key)
-          ? Promise.reject({ statusCode: 404 })
+          ? Promise.reject({ errorType: 'NoSuchKey' })
           : Promise.resolve({ Body: testOptions.fileContents[Key] }),
     }));
 
@@ -338,6 +338,49 @@ describe('📦 Middleware Redirects', () => {
     });
   };
 
+  test('No _redirects file, no files should pass-through', done => {
+    testScenario(
+      eventSample('/asdf'),
+      event => {
+        expect(event).toEqual(eventSample('/asdf/index.html'));
+      },
+      done,
+      {
+        noFiles: ['asdf', 'asdf/index.html', '404.html', '_redirects'],
+      },
+    );
+  });
+
+  test('No DefaultDoc should pass-through', done => {
+    testScenario(
+      eventSample('/asdf'),
+      event => {
+        expect(event).toEqual(eventSample('/asdf'));
+      },
+      done,
+      null,
+      {
+        defaultDoc: null,
+      },
+    );
+  });
+
+  test('No FriendlyURLs should pass-through', done => {
+    testScenario(
+      eventSample('/asdf/index.html'),
+      event => {
+        expect(event).toEqual(eventSample('/asdf/index.html'));
+      },
+      done,
+      {
+        noFiles: ['asdf/index.html'],
+      },
+      {
+        friendlyUrls: false,
+      },
+    );
+  });
+
   test('Root route should work', done => {
     testScenario(
       eventSample('/'),
@@ -345,9 +388,6 @@ describe('📦 Middleware Redirects', () => {
         expect(event).toEqual(eventSample('/index.html'));
       },
       done,
-      {
-        noFiles: ['/'],
-      },
     );
   });
 
@@ -545,15 +585,4 @@ describe('📦 Middleware Redirects', () => {
       done,
     );
   });
-
-  // test('Catch-all should work', done => {
-  //   testScenario(
-  //     { rules },
-  //     eventSample('/somerandomlongthing'),
-  //     event => {
-  //       expect(event).toEqual(eventSample('/index.html'));
-  //     },
-  //     done,
-  //   );
-  // });
 });
