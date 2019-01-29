@@ -17,12 +17,21 @@ const route = pathMatch({
   end: true,
 });
 
-let options;
+let options, originBucket, incomingHost;
 const rerouteMiddleware = async (opts = {}, handler, next) => {
   const { request } = handler.event.Records[0].cf;
   const { origin } = request;
+  incomingHost =
+    request.headers.host &&
+    request.headers.host[0] &&
+    request.headers.host[0].value;
+  const s3DomainName = origin && origin.s3 && origin.s3.domainName;
+  originBucket = s3DomainName && s3DomainName.replace('.s3.amazonaws.com', '');
+
   const defaults = {
     file: '_redirects',
+    multiFile: true,
+    rulesBucket: originBucket,
     regex: {
       htmlEnd: /(.*)\/((.*)\.html?)$/,
       ignoreRules: /^(?:#.*[\r\n]|\s*[\r\n])/gm,
@@ -30,7 +39,6 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     },
     defaultStatus: 301,
     redirectStatuses: [301, 302, 303],
-    bucketName: origin.s3.domainName.replace('.s3.amazonaws.com', ''),
     friendlyUrls: true,
     defaultDoc: `index.html`,
     custom404: `404.html`,
@@ -38,15 +46,16 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
   options = merge(defaults, opts);
   logger('Raw Event: ', JSON.stringify(handler.event));
   logger('Middleware Options: ', options);
+  logger('Request Host: ', incomingHost);
+  logger('Request Origin: ', s3DomainName);
 
-  logger('Request.Uri: ', request.uri);
+  // Origin must be S3
+  if (!s3DomainName) throw new Error('Must use S3 as Origin');
 
   try {
     // Check if file exists
     const keyExists = await doesKeyExist(request.uri);
 
-    // Check if there is a file with extension at the end of the path
-    const isFile = path.extname(request.uri) !== '';
     // Detect if needing friendly URLs
     const isUnFriendlyUrl =
       options.friendlyUrls && request.uri.match(options.regex.htmlEnd);
@@ -63,6 +72,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     } else {
       // Gather and parse rules
       const data = await getRedirectData();
+      logger('Rules: ', data);
 
       // Find URI match in the rules
       const match = findMatch(data, request.uri);
@@ -74,13 +84,19 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
           ? redirect(match.parsedTo, match.status)
           : isAbsoluteURI(match.parsedTo)
           ? await proxy(match.parsedTo, handler.event)
-          : await rewrite(forceDefaultDoc(match.parsedTo), handler.event);
+          : await rewrite(
+              forceDefaultDoc(match.parsedTo),
+              s3DomainName,
+              handler.event,
+            );
       } else {
         logger('NO Match');
         // Pass-Through: No match, so other then DefaultDoc, let it pass through
-        event = !isFile
-          ? await rewrite(forceDefaultDoc(request.uri), handler.event)
-          : handler.event;
+        event = await rewrite(
+          forceDefaultDoc(request.uri),
+          s3DomainName,
+          handler.event,
+        );
       }
     }
 
@@ -141,12 +157,18 @@ const findMatch = (data, uri) => {
 };
 
 const getRedirectData = () => {
-  logger('Getting Rules from: ', options.rules ? 'Options' : 'S3');
+  const Key = !options.multiFile
+    ? options.file
+    : `${options.file}_${incomingHost}`;
+  logger(`
+    Getting Rules from: ${options.rules ? 'Options' : 'S3'}
+    Bucket: ${options.rulesBucket}
+    Key: ${Key}`);
   return options.rules
     ? parseRules(options.rules)
     : S3.getObject({
-        Bucket: options.bucketName,
-        Key: options.file,
+        Bucket: options.rulesBucket,
+        Key,
       })
         .promise()
         .then(data => parseRules(data.Body.toString()))
@@ -192,7 +214,7 @@ const replaceSplats = (obj, pattern) =>
 const doesKeyExist = key => {
   const parsedKey = key.replace(/^\/+/, '');
   return S3.headObject({
-    Bucket: options.bucketName,
+    Bucket: originBucket,
     Key: parsedKey,
   })
     .promise()
@@ -221,13 +243,25 @@ const redirect = (to, status) => {
   };
 };
 
-const rewrite = async (to, event) => {
+const rewrite = async (to, host, event) => {
   logger('Rewriting: ', to);
   const resp =
     (!isAbsoluteURI(to) &&
       !(await doesKeyExist(to)) &&
       (await get404Response())) ||
-    merge(event, { Records: [{ cf: { request: { uri: to } } }] });
+    merge(event, {
+      Records: [
+        {
+          cf: {
+            request: {
+              headers: { host: [{ key: 'Host', value: host }] },
+              uri: to,
+            },
+          },
+        },
+      ],
+    });
+  logger('Rewriting Event: ', JSON.stringify(resp));
   return resp;
 };
 
@@ -310,7 +344,7 @@ const getProxyResponse = resp => {
 
 const get404Response = () => {
   return S3.getObject({
-    Bucket: options.bucketName,
+    Bucket: originBucket,
     Key: options.custom404,
   })
     .promise()

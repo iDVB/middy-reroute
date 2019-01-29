@@ -26,6 +26,7 @@
  - [Why?](#why?)
  - [Requirements](#requirements)
  - [Usage](#usage)
+ - [API](#API)
  - [Contributing](#contributing)
  - [License](#license)
 
@@ -125,6 +126,66 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
 /api/*  https://api.example.com/:splat  200
 ```
 
+## API
+
+### options
+
+```javascript
+{
+    // 'file' is the S3 key where your rules file can be found
+    file: '_redirects',  // default
+
+    // 'multiFile' is a boolean to denote if you would like middy-reroute to
+    // look for host specific rules files or just a single rules file matching
+    // the *options.file* param above. MultiFiles will resolve to 
+    // `${options.file}_${host}`
+    // Eg. multiFile: true (and the host is domain.com)
+    //     _redirects_domain.com
+    multiFile: true,  // default
+
+    // 'rulesBucket' is the bucket to reference when looking for the rules files
+    // Default: As a default the origin bucket is used.
+    rulesBucket: 'my-existing-bucket-name',
+
+    // 'regex'
+    regex: {
+      // 'htmlEnd' is used to identify URI that end in an html file.
+      // These will be rewriten if *options.friendlyUrls*: true.
+      htmlEnd: /(.*)\/((.*)\.html?)$/,  // default
+
+      // 'ignoreRules' is used to identify lines in the rules file that should
+      // be completely ignored.
+      // Default: Ignores comments and empty lines.
+      ignoreRules: /^(?:#.*[\r\n]|\s*[\r\n])/gm,  // default
+
+      // 'ruleline' is used to parse each individual line of rules in the rules
+      // file. Change this at your own discretion. At the very lease the same 
+      // number and order of match groups needs to be defined.
+      ruleline: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?/,  // default
+    },
+
+    // 'defaultStatus' - specifies the default http status to use when none is
+    // specified in the rule.
+    defaultStatus: 301,  // default
+
+    // 'redirectStatuses' declares which http statuses should result in
+    // redirects
+    redirectStatuses: [301, 302, 303],  // default
+
+    // 'friendlyUrls' 
+    friendlyUrls: true,  // default
+
+    // 'defaultDoc' is the name of the file that should be served up when
+    // paths are referenced.
+    // Eg. /thing  will be rewriten to /thing/index.html
+    // note* Since it's a rewrite the user will still see this as /thing
+    defaultDoc: `index.html`,  // default
+
+    // 'custom404' is the S3 key where to automatically look for your custom
+    //  404 page when a resource can't be found.
+    custom404: `404.html`,  // default
+  };
+```
 
 ## Contributing
 

@@ -6,13 +6,19 @@ import reroute from '..';
 import { STATUS_CODES } from 'http';
 
 const rules = fs.readFileSync(path.join(__dirname, '_redirects')).toString();
+const rulesDomain = fs
+  .readFileSync(path.join(__dirname, '_redirects_reroute.danvanbrunt.com'))
+  .toString();
 const html404 = fs.readFileSync(path.join(__dirname, '404.html')).toString();
 
 jest.mock('axios');
 jest.mock('../s3');
 import S3 from '../s3';
 
-const eventSample = uri => ({
+const eventSample = (
+  uri,
+  host = 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
+) => ({
   Records: [
     {
       cf: {
@@ -53,7 +59,7 @@ const eventSample = uri => ({
             host: [
               {
                 key: 'Host',
-                value: 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
+                value: host,
               },
             ],
           },
@@ -373,9 +379,6 @@ describe('📦 Middleware Redirects', () => {
       },
       done,
       {
-        noFiles: ['asdf/index.html'],
-      },
-      {
         friendlyUrls: false,
       },
     );
@@ -583,6 +586,38 @@ describe('📦 Middleware Redirects', () => {
         expect(event).toEqual(proxyResponseSample);
       },
       done,
+    );
+  });
+
+  test('Host FROM rule should work', done => {
+    axios.mockImplementation(() => Promise.resolve(axiosSample));
+    const domain = 'reroute.danvanbrunt.com';
+    testScenario(
+      eventSample('/hosttest', domain),
+      event => {
+        expect(event).toEqual(eventSample('/hostworked/index.html'));
+      },
+      done,
+      {
+        fileContents: { [`_redirects_${domain}`]: rulesDomain },
+      },
+      { multiFile: true },
+    );
+  });
+
+  test('Host FROM with no rule should pass-through', done => {
+    axios.mockImplementation(() => Promise.resolve(axiosSample));
+    const domain = 'red.danvanbrunt.com';
+    testScenario(
+      eventSample('/hosttest', domain),
+      event => {
+        expect(event).toEqual(eventSample('/hosttest/index.html'));
+      },
+      done,
+      {
+        noFiles: [`_redirects_${domain}`],
+      },
+      { multiFile: true },
     );
   });
 });

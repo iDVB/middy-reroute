@@ -34,6 +34,9 @@ functions:
 
 resources:
   Description: middy-reroute example
+  Conditions:
+    isProd: {"Fn::Equals" : ["${self:custom.vars.STAGE_FLAG}", "prod"]}
+    isDev: {"Fn::Equals" : ["${self:custom.vars.STAGE_FLAG}", "dev"]}
   Resources:
     CloudfrontOAI:
       Type: "AWS::CloudFront::CloudFrontOriginAccessIdentity"
@@ -103,9 +106,7 @@ resources:
       Properties:
         DistributionConfig:
           Aliases: ${self:custom.vars.ALIASES}
-          ViewerCertificate:
-            AcmCertificateArn: {Ref: SSLCert}
-            SslSupportMethod: sni-only
+          ViewerCertificate: ${self:custom.vars.VIEWER_CERT}
           Enabled: true
           HttpVersion: http2
           PriceClass: PriceClass_100
@@ -127,6 +128,8 @@ resources:
               QueryString: false
               Cookies:
                 Forward: none
+              Headers:
+                - Host
             DefaultTTL: 0
             MaxTTL: 0
             MinTTL: 0
@@ -143,6 +146,7 @@ resources:
                 OriginAccessIdentity: {"Fn::Join": ["", ["origin-access-identity/cloudfront/", {Ref: CloudfrontOAI}]]}
         Tags: ${self:custom.vars.TAGS}
     DnsRecords:
+      Condition: isProd
       Type: "AWS::Route53::RecordSetGroup"
       Properties:
         HostedZoneName: danvanbrunt.com.
@@ -169,6 +173,7 @@ resources:
               DNSName:  {"Fn::GetAtt": WebsiteDistribution.DomainName}
               HostedZoneId: Z2FDTNDATAQYW2
     SSLCert:
+      Condition: isProd
       Type: "AWS::CertificateManager::Certificate"
       Properties:
         DomainName: "reroute.danvanbrunt.com"

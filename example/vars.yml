@@ -1,11 +1,7 @@
 default: &default
   STAGE: ${opt:stage, 'dev'}
   STACKNAME: ${self:service}-${self:custom.vars.STAGE}
-  ALIASES:
-    - reroute.danvanbrunt.com
-    - red.danvanbrunt.com
-    - green.danvanbrunt.com
-    - blue.danvanbrunt.com
+  ALIASES: {Ref : "AWS::NoValue"}
   TAGS:
     - Key: STAGE
       Value: ${self:custom.vars.STAGE}
@@ -15,3 +11,17 @@ default: &default
 dev:
   <<: [*default]
   STAGE_FLAG: dev
+  VIEWER_CERT:
+    CloudFrontDefaultCertificate: true
+
+prod:
+  <<: [*default]
+  STAGE_FLAG: prod
+  ALIASES:
+    - reroute.danvanbrunt.com
+    - red.danvanbrunt.com
+    - green.danvanbrunt.com
+    - blue.danvanbrunt.com
+  VIEWER_CERT:
+    AcmCertificateArn: {Ref: SSLCert}
+    SslSupportMethod: sni-only
