@@ -1,0 +1,35 @@
+
+# https://www.netlify.com/docs/redirects/
+
+/internal1  /internal2
+/internal3  /internal4   301
+/internal5  /internal6   302
+/internal7  /internal8   303
+/internal9 https://external.com
+
+/trailingslash/  /trailred
+
+# Rewrites
+/news   /blog         200
+/stuff  /nofilehere   200
+
+# Placeholders
+/news/:year/:month/:date/:slug   /blog/:date/:month/:year/:slug
+/articles/:year/:month/:date/:slug   /stories/:date/:month/:year/:slug  200
+/things/:year/:month/:date/:slug   https://external.com/stuff/:date/:month/:year/:slug
+
+# Splats
+/shop/*  /checkout/:splat
+
+# Custom 404
+/ecommerce  /store-closed   404
+
+# Existing URI
+/existing/index.php  /nowork
+
+# Existing URI FORCED
+/something/index.html  /works  301!
+
+# Proxy
+/api/*  https://api.github.com/:splat   200
+

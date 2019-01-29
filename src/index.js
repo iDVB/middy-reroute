@@ -36,9 +36,10 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     custom404: `404.html`,
   };
   options = merge(defaults, opts);
-  logger('options', options);
+  logger('Raw Event: ', JSON.stringify(handler.event));
+  logger('Middleware Options: ', options);
 
-  logger('REQUEST.URI: ', request.uri);
+  logger('Request.Uri: ', request.uri);
 
   try {
     // Check if file exists
@@ -85,6 +86,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
 
     handler.event = event;
   } catch (err) {
+    logger('Throwing Error for main thread');
     throw err;
   }
 
@@ -147,7 +149,11 @@ const getRedirectData = () => {
         Key: options.file,
       })
         .promise()
-        .then(data => parseRules(data.Body.toString()));
+        .then(data => parseRules(data.Body.toString()))
+        .catch(err => {
+          logger('No _redirects file', err);
+          return false;
+        });
 };
 
 const parseRules = stringFile =>
@@ -191,15 +197,16 @@ const doesKeyExist = key => {
   })
     .promise()
     .then(data => {
-      logger('Key FOUND: ', parsedKey);
+      logger('doesKeyExist FOUND: ', parsedKey);
       return true;
     })
     .catch(err => {
-      if (err.statusCode === 404) {
-        logger('Key NOT Found: ', parsedKey);
+      if (err.errorType === 'NoSuchKey') {
+        logger('doesKeyExist NOT Found: ', parsedKey);
         return false;
       }
-      throw err;
+      logger('doesKeyExist err: ', err);
+      return false;
     });
 };
 
@@ -268,7 +275,9 @@ const capitalizeParam = param =>
     .join('-');
 
 const forceDefaultDoc = uri =>
-  path.extname(uri) === '' ? path.join(uri, options.defaultDoc) : uri;
+  path.extname(uri) === '' && !!options.defaultDoc
+    ? path.join(uri, options.defaultDoc)
+    : uri;
 
 const getProxyResponse = resp => {
   const { status, statusText, data } = resp;
@@ -322,7 +331,7 @@ const get404Response = () => {
       };
     })
     .catch(err => {
-      if (err.statusCode === 404) {
+      if (err.errorType === 'NoSuchKey') {
         logger('Custom 404 NOT Found');
       }
       logger('Get404ResponseErr', err);
