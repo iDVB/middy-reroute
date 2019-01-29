@@ -169,10 +169,14 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
     defaultStatus: 301,  // default
 
     // 'redirectStatuses' declares which http statuses should result in
-    // redirects
+    // redirects.
     redirectStatuses: [301, 302, 303],  // default
 
-    // 'friendlyUrls' 
+    // 'friendlyUrls' specifies whether the URIs should be redirected 
+    // to avoid ending in .html
+    // Eg. 
+    //   /thing/index.html  =  /thing/
+    //   /thing/about.html  =  /thing/about/
     friendlyUrls: true,  // default
 
     // 'defaultDoc' is the name of the file that should be served up when
