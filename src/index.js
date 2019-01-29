@@ -36,9 +36,10 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     custom404: `404.html`,
   };
   options = merge(defaults, opts);
-  logger('options', options);
+  logger('Raw Event: ', JSON.stringify(handler.event));
+  logger('Middleware Options: ', options);
 
-  logger('REQUEST.URI: ', request.uri);
+  logger('Request.Uri: ', request.uri);
 
   try {
     // Check if file exists

@@ -2,3 +2,4 @@ node_modules
 coverage/*
 docs/*
 lib/*
+example/functions/reroute/lib/*

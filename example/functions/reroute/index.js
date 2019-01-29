@@ -3,7 +3,7 @@
 process.env.DEBUG = 'reroute:log';
 
 const middy = require('middy');
-const reroute = require('../../symlink_to_module/lib/reroute');
+const reroute = require('./lib/reroute');
 
 const handler = middy((event, context, cb) => {
   const request = !!event.Records ? event.Records[0].cf.request : event;

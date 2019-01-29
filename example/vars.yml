@@ -1,6 +1,11 @@
 default: &default
   STAGE: ${opt:stage, 'dev'}
   STACKNAME: ${self:service}-${self:custom.vars.STAGE}
+  ALIASES:
+    - reroute.danvanbrunt.com
+    - red.danvanbrunt.com
+    - green.danvanbrunt.com
+    - blue.danvanbrunt.com
   TAGS:
     - Key: STAGE
       Value: ${self:custom.vars.STAGE}

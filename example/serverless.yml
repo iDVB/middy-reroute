@@ -6,9 +6,9 @@ custom:
   vars: ${file(vars.yml):${opt:stage, self:provider.stage}, file(vars.yml):dev}
 scriptHooks:
   after:deploy:deploy:
-    - sh ./scripts/deploy_static_files.sh ${self:custom.vars.STACKNAME}
+    - sh ./scripts/deploy_static_files.sh ${self:custom.vars.STACKNAME} ${opt:aws-profile}
   before:remove:remove:
-    - sh ./scripts/remove_static_files.sh ${self:custom.vars.STACKNAME}
+    - sh ./scripts/remove_static_files.sh ${self:custom.vars.STACKNAME} ${opt:aws-profile}
 
 provider:
   name: aws
@@ -30,7 +30,6 @@ functions:
     package:
       include:
         - functions/reroute/**/*
-        - symlink_to_module/**/*
 
 
 resources:
@@ -103,8 +102,10 @@ resources:
       Type: "AWS::CloudFront::Distribution"
       Properties:
         DistributionConfig:
+          Aliases: ${self:custom.vars.ALIASES}
           ViewerCertificate:
-            CloudFrontDefaultCertificate: true
+            AcmCertificateArn: {Ref: SSLCert}
+            SslSupportMethod: sni-only
           Enabled: true
           HttpVersion: http2
           PriceClass: PriceClass_100
@@ -141,6 +142,40 @@ resources:
               S3OriginConfig:
                 OriginAccessIdentity: {"Fn::Join": ["", ["origin-access-identity/cloudfront/", {Ref: CloudfrontOAI}]]}
         Tags: ${self:custom.vars.TAGS}
+    DnsRecords:
+      Type: "AWS::Route53::RecordSetGroup"
+      Properties:
+        HostedZoneName: danvanbrunt.com.
+        Comment: "DNS records associated with ${self:custom.vars.STACKNAME}"
+        RecordSets:
+          - Name: reroute.danvanbrunt.com
+            Type: A
+            AliasTarget:
+              DNSName:  {"Fn::GetAtt": WebsiteDistribution.DomainName}
+              HostedZoneId: Z2FDTNDATAQYW2
+          - Name: red.danvanbrunt.com
+            Type: A
+            AliasTarget:
+              DNSName:  {"Fn::GetAtt": WebsiteDistribution.DomainName}
+              HostedZoneId: Z2FDTNDATAQYW2
+          - Name: green.danvanbrunt.com
+            Type: A
+            AliasTarget:
+              DNSName:  {"Fn::GetAtt": WebsiteDistribution.DomainName}
+              HostedZoneId: Z2FDTNDATAQYW2
+          - Name: blue.danvanbrunt.com
+            Type: A
+            AliasTarget:
+              DNSName:  {"Fn::GetAtt": WebsiteDistribution.DomainName}
+              HostedZoneId: Z2FDTNDATAQYW2
+    SSLCert:
+      Type: "AWS::CertificateManager::Certificate"
+      Properties:
+        DomainName: "reroute.danvanbrunt.com"
+        SubjectAlternativeNames: 
+          - red.danvanbrunt.com
+          - green.danvanbrunt.com
+          - blue.danvanbrunt.com
 
   Outputs:
     SiteUrl:
