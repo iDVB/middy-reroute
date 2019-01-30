@@ -54,7 +54,7 @@ npm install middy middy-reroute
 - Lambda@Edge
   - Cloudfront -> Lambda -> S3
   - origin-request event
-- (Optional) Whitelist `Host` header on Cloudfront CDN
+- (Optional) Whitelist `Host`, `Accept-Language`, and `CloudFront-Viewer-Country` headers on Cloudfront CDN. These will allow you to use Host, Language and Country specific conditions in the rules.
 
 middy-reroute has been built to work by default from **Node >= 6**.
 You will also need the core middyjs middleware engine.

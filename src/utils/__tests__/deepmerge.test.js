@@ -20,10 +20,12 @@ const obj2 = {
       hot: 45,
     },
   },
+  arr: [],
+  obj: {},
 };
 const obj3 = {
   other: {
-    thing3: 'new',
+    thing2: { cool: [] },
   },
 };
 
@@ -39,6 +41,8 @@ describe('📦 Middleware Redirects', () => {
           hot: 45,
         },
       },
+      arr: [],
+      obj: {},
     };
     expect(merge(obj1, obj2)).toEqual(result);
   });
@@ -53,8 +57,9 @@ describe('📦 Middleware Redirects', () => {
           cool: ['sock', 'hat', 'vest'],
           hot: 45,
         },
-        thing3: 'new',
       },
+      arr: [],
+      obj: {},
     };
     expect(mergeAll([obj1, obj2, obj3])).toEqual(result);
   });
