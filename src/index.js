@@ -30,12 +30,13 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
 
   const defaults = {
     file: '_redirects',
-    multiFile: true,
+    multiFile: false,
     rulesBucket: originBucket,
     regex: {
       htmlEnd: /(.*)\/((.*)\.html?)$/,
       ignoreRules: /^(?:#.*[\r\n]|\s*[\r\n])/gm,
-      ruleline: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?/,
+      ruleline: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?(?:(?:\s+)?([^\s\r\n]+))?/,
+      absoluteUri: /^(?:[a-z]+:)?\/\//,
     },
     defaultStatus: 301,
     redirectStatuses: [301, 302, 303],
@@ -44,10 +45,11 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     custom404: `404.html`,
   };
   options = merge(defaults, opts);
-  logger('Raw Event: ', JSON.stringify(handler.event));
-  logger('Middleware Options: ', options);
-  logger('Request Host: ', incomingHost);
-  logger('Request Origin: ', s3DomainName);
+  logger(`
+    Raw Event: ${JSON.stringify(handler.event)}
+    Middleware Options: ${JSON.stringify(options)}
+    Request Host: ${incomingHost}
+    Request Origin: ${s3DomainName}`);
 
   // Origin must be S3
   if (!s3DomainName) throw new Error('Must use S3 as Origin');
@@ -108,6 +110,11 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
 
   logger('RETURNING EVENT!!!!');
   return;
+};
+
+const conditionMap = {
+  Language: 'Accept-Language',
+  Country: 'CloudFront-Viewer-Country',
 };
 
 const blacklistedHeaders = {
@@ -188,13 +195,16 @@ const parseRules = stringFile =>
     .filter(l => l !== '')
     .map(l => {
       // regex
-      const [first, from, to, status, force] = l.match(options.regex.ruleline);
+      const [first, from, to, status, force, conditions] = l.match(
+        options.regex.ruleline,
+      );
       // restructure into object
       return {
         from,
         to,
         status: status ? parseInt(status, 10) : options.defaultStatus,
         force: !!force,
+        conditions,
       };
     });
 
@@ -297,7 +307,7 @@ const lambdaReponseToObj = req => {
 };
 
 const isAbsoluteURI = to => {
-  const test = /^(?:[a-z]+:)?\/\//.test(to);
+  const test = options.regex.absoluteUri.test(to);
   logger('isAbsoluteURI: ', test, to);
   return test;
 };

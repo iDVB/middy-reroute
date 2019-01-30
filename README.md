@@ -50,12 +50,13 @@ npm install middy middy-reroute
 ## Requirements
 
 - middy
-- Node >= 8.10
+- Node >= 6
 - Lambda@Edge
   - Cloudfront -> Lambda -> S3
   - origin-request event
+- (Optional) Whitelist `Host` header on Cloudfront CDN
 
-middy-reroute has been built to work by default from **Node >= 8.10**.
+middy-reroute has been built to work by default from **Node >= 6**.
 You will also need the core middyjs middleware engine.
 
 While most of middy's middlewares have been written for use with AWS Lambda + API Gateway, middy-reroute work **exclusively** with [Lambda@Edge](https://docs.aws.amazon.com/lambda/latest/dg/lambda-edge.html). This is due to the fact that the middleware needs to run at the edge CDN so that it can intercept requests made to your origin (S3).
@@ -68,8 +69,10 @@ Using middy-reroute is pretty effortless but very powerful.
 
  1. Create your Lambda function similar to the handler.js below.
  2. Associate this function with the `origin-request` event of your CloudFront CDN that sits in front of your site's s3 bucket.
- 3. Place your desired rules into a [_redirects](#_redirects-file) file and upload into the root of your S3 bucket.
- 4. Profit!
+ 3. IF you want to take advantage of domain/host specific routing.
+    1. [Whitelist](https://github.com/iDVB/middy-reroute/blob/master/example/serverless.yml#L131-L132) the `Host` header on the above CDN.
+ 4. Place your desired rules into a [_redirects](#_redirects-file) file and upload into the root of your S3 bucket.
+ 5. Profit!
 
 Example:
 
@@ -161,7 +164,12 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
       // 'ruleline' is used to parse each individual line of rules in the rules
       // file. Change this at your own discretion. At the very lease the same 
       // number and order of match groups needs to be defined.
-      ruleline: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?/,  // default
+      ruleline: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?(?:(?:\s+)?([^\s\r\n]+))?/,  // default
+
+      // 'absoluteUri' is used to identify if a URL is absolute vs relative.
+      //  /this  =  false
+      //  http://domain.com/this   =  true
+      absoluteUri: /^(?:[a-z]+:)?\/\//,  // default
     },
 
     // 'defaultStatus' - specifies the default http status to use when none is
@@ -189,6 +197,50 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
     //  404 page when a resource can't be found.
     custom404: `404.html`,  // default
   };
+```
+
+## Origin-Request Event Object
+
+The following is a typical event object that gets fed into your Lambda@Edge function for a `origin-request` event.
+
+```javascript
+{
+  "Records": [
+    {
+      "cf": {
+        "request": {
+          "clientIp": "99.99.999.999",
+          "headers": {
+            "host": [
+              {
+                "key": "Host",
+                // 'value' will either be your [S3 bucket domain]
+                // OR your incoming [Host] depending on if you whitelist it
+                "value": "somedomain.com"
+              }
+            ]
+          },
+          "method": "GET",
+          "origin": {
+            "s3": {
+              "authMethod": "origin-access-identity",
+              "customHeaders": {},
+              // 'domainName' will be your [S3 bucket domain]
+              "domainName": "some-unique-bucketname.s3.amazonaws.com",
+              "path": "",
+              "region": "us-east-1"
+            }
+          },
+          "querystring": "",
+          // 'uri' is your incoming request path
+          // This is the property manipulated by middy-reroute
+          // during a rewrite
+          "uri": "/news"
+        }
+      }
+    }
+  ]
+}
 ```
 
 ## Contributing
