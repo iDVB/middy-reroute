@@ -245,32 +245,34 @@ const findMatch = (data, uri) => {
 ///////////////////////
 // Data Fetching     //
 ///////////////////////
-const doesKeyExist = key => {
-  const parsedKey = key.replace(/^\/+/, '');
-  return S3.headObject({
-    Bucket: originBucket,
-    Key: parsedKey,
-  })
-    .promise()
-    .then(data => {
-      logger('doesKeyExist FOUND: ', parsedKey);
-      return true;
+const doesKeyExist = rawKey => {
+  const Key = rawKey.replace(/^\/+/, '');
+  return cache.get(`doesKeyExist_${Key}`, () =>
+    S3.headObject({
+      Bucket: originBucket,
+      Key,
     })
-    .catch(err => {
-      if (err.errorType === 'NoSuchKey') {
-        logger('doesKeyExist NOT Found: ', parsedKey);
+      .promise()
+      .then(data => {
+        logger('doesKeyExist FOUND: ', Key);
+        return true;
+      })
+      .catch(err => {
+        if (err.errorType === 'NoSuchKey') {
+          logger('doesKeyExist NOT Found: ', Key);
+          return false;
+        }
+        logger('doesKeyExist err: ', err);
         return false;
-      }
-      logger('doesKeyExist err: ', err);
-      return false;
-    });
+      }),
+  );
 };
 
 const getRedirectData = () => {
   const Key = !options.multiFile
     ? options.file
     : `${options.file}_${incomingHost}`;
-  const func = () => {
+  return cache.get(`getRedirectData_${Key}`, () => {
     logger(`
       Getting Rules from: ${options.rules ? 'Options' : 'S3'}
       Bucket: ${options.rulesBucket}
@@ -287,10 +289,7 @@ const getRedirectData = () => {
             logger('No _redirects file', err);
             return false;
           });
-  };
-  return options.cacheTtl > 0
-    ? cache.get(`getRedirectData_${Key}`, func)
-    : func();
+  });
 };
 
 const getProxyResponse = resp => {
@@ -324,7 +323,7 @@ const getProxyResponse = resp => {
 
 const get404Response = () => {
   const Key = options.custom404;
-  const func = () =>
+  return cache.get(`get404Response_${Key}`, () =>
     S3.getObject({
       Bucket: originBucket,
       Key,
@@ -352,11 +351,8 @@ const get404Response = () => {
         }
         logger('Get404ResponseErr', err);
         return false;
-      });
-
-  return options.cacheTtl > 0
-    ? cache.get(`get404Response_${Key}`, func)
-    : func();
+      }),
+  );
 };
 
 ///////////////////////////

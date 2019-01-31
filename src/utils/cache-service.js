@@ -12,13 +12,14 @@ class Cache {
   }
 
   get(key, storeFunction) {
-    const value = this.cache.get(key);
-    if (value) {
-      return Promise.resolve(value);
+    if (this.ttl > 0) {
+      const value = this.cache.get(key);
+      if (value) {
+        return Promise.resolve(value);
+      }
     }
-
     return storeFunction().then(result => {
-      this.cache.set(key, result, this.ttl);
+      this.ttl > 0 && this.cache.set(key, result, this.ttl);
       return result;
     });
   }
@@ -29,6 +30,7 @@ class Cache {
 
   setDefaultTtl(ttl) {
     this.ttl = ttl;
+    this.ttl === 0 && this.flush();
   }
 
   delStartWith(startStr = '') {

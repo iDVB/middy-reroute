@@ -37,7 +37,7 @@ describe('📦 Middleware Redirects', () => {
     );
     const midOptions = merge(
       {
-        cacheTtl: 1,
+        cacheTtl: 0,
       },
       midOpt,
     );
@@ -66,9 +66,10 @@ describe('📦 Middleware Redirects', () => {
 
   it('RulesGet should cache', async () => {
     expect.assertions(2);
-    await testReroute(eventSample({ uri: '/test1' }));
-    await testReroute(eventSample({ uri: '/test2' }));
-    await testReroute(eventSample({ uri: '/test3' }));
+    const midOpt = { cacheTtl: 1 };
+    await testReroute(eventSample({ uri: '/test1' }), undefined, midOpt);
+    await testReroute(eventSample({ uri: '/test2' }), undefined, midOpt);
+    await testReroute(eventSample({ uri: '/test3' }), undefined, midOpt);
     expect(S3.getObject).toBeCalledWith(
       expect.objectContaining({
         Key: '_redirects',
@@ -79,10 +80,9 @@ describe('📦 Middleware Redirects', () => {
 
   it('RulesGet cache should have TTF', async () => {
     expect.assertions(1);
-    await delay(1100);
-    await testReroute(eventSample({ uri: '/test1' }));
-    await delay(1100);
-    await testReroute(eventSample({ uri: '/test2' }));
+    const midOpt = { cacheTtl: 0 };
+    await testReroute(eventSample({ uri: '/test1' }), undefined, midOpt);
+    await testReroute(eventSample({ uri: '/test2' }), undefined, midOpt);
     expectNCallsWithArgs(S3.getObject.mock.calls, 2, [
       expect.objectContaining({
         Key: '_redirects',
@@ -156,7 +156,6 @@ describe('📦 Middleware Redirects', () => {
   });
 
   it('Rewrites w/o file OR custom 404 should pass-through', async () => {
-    await delay(1100);
     const event = await testReroute(eventSample({ uri: '/stuff/' }), {
       noFiles: ['nofilehere/index.html', '404.html'],
     });
@@ -206,7 +205,6 @@ describe('📦 Middleware Redirects', () => {
   });
 
   it('Custom 404 missing should pass-through', async () => {
-    await delay(1100);
     const event = await testReroute(eventSample({ uri: '/ecommerce' }), {
       noFiles: ['store-closed/index.html', '404.html'],
     });
