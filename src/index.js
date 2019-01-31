@@ -270,11 +270,11 @@ const getRedirectData = () => {
   const Key = !options.multiFile
     ? options.file
     : `${options.file}_${incomingHost}`;
-  return cache.get(`getRedirectData_${Key}`, () => {
+  const func = () => {
     logger(`
-    Getting Rules from: ${options.rules ? 'Options' : 'S3'}
-    Bucket: ${options.rulesBucket}
-    Key: ${Key}`);
+      Getting Rules from: ${options.rules ? 'Options' : 'S3'}
+      Bucket: ${options.rulesBucket}
+      Key: ${Key}`);
     return options.rules
       ? parseRules(options.rules)
       : S3.getObject({
@@ -287,7 +287,10 @@ const getRedirectData = () => {
             logger('No _redirects file', err);
             return false;
           });
-  });
+  };
+  return options.cacheTtl > 0
+    ? cache.get(`getRedirectData_${Key}`, func)
+    : func();
 };
 
 const getProxyResponse = resp => {
@@ -320,34 +323,40 @@ const getProxyResponse = resp => {
 };
 
 const get404Response = () => {
-  return S3.getObject({
-    Bucket: originBucket,
-    Key: options.custom404,
-  })
-    .promise()
-    .then(({ Body }) => {
-      logger('Custom 404 FOUND');
-      return {
-        status: '404',
-        statusDescription: STATUS_CODES['404'],
-        headers: {
-          'content-type': [
-            {
-              key: 'Content-Type',
-              value: 'text/html',
-            },
-          ],
-        },
-        body: Body.toString(),
-      };
+  const Key = options.custom404;
+  const func = () =>
+    S3.getObject({
+      Bucket: originBucket,
+      Key,
     })
-    .catch(err => {
-      if (err.errorType === 'NoSuchKey') {
-        logger('Custom 404 NOT Found');
-      }
-      logger('Get404ResponseErr', err);
-      return false;
-    });
+      .promise()
+      .then(({ Body }) => {
+        logger('Custom 404 FOUND');
+        return {
+          status: '404',
+          statusDescription: STATUS_CODES['404'],
+          headers: {
+            'content-type': [
+              {
+                key: 'Content-Type',
+                value: 'text/html',
+              },
+            ],
+          },
+          body: Body.toString(),
+        };
+      })
+      .catch(err => {
+        if (err.errorType === 'NoSuchKey') {
+          logger('Custom 404 NOT Found');
+        }
+        logger('Get404ResponseErr', err);
+        return false;
+      });
+
+  return options.cacheTtl > 0
+    ? cache.get(`get404Response_${Key}`, func)
+    : func();
 };
 
 ///////////////////////////

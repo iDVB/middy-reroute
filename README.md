@@ -196,6 +196,11 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
     // 'custom404' is the S3 key where to automatically look for your custom
     //  404 page when a resource can't be found.
     custom404: `404.html`,  // default
+
+    // 'cacheTtl' is the TTL in seconds that S3 calls should be cached.
+    //  Eg. get rules file or custom404
+    //  set to 0 to disable caching
+    cacheTtl: 300 // secounds default
   };
 ```
 
