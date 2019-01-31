@@ -382,7 +382,9 @@ describe('📦 Middleware Redirects', () => {
       noFiles: [`nofilehere/index.html`, `pretty/things.html`],
       fileContents: { _redirects: rules, '404.html': html404 },
     },
-    midOptions = {},
+    midOptions = {
+      cacheTtl: 1,
+    },
   ) =>
     new Promise((resolve, reject) => {
       S3.headObject.mockImplementation(({ Key }) => ({
@@ -408,15 +410,9 @@ describe('📦 Middleware Redirects', () => {
 
   it('RulesGet should cache', async () => {
     expect.assertions(2);
-    await testReroute(eventSample({ uri: '/test1' }), undefined, {
-      cacheTtl: 1,
-    });
-    await testReroute(eventSample({ uri: '/test2' }), undefined, {
-      cacheTtl: 1,
-    });
-    await testReroute(eventSample({ uri: '/test3' }), undefined, {
-      cacheTtl: 1,
-    });
+    await testReroute(eventSample({ uri: '/test1' }));
+    await testReroute(eventSample({ uri: '/test2' }));
+    await testReroute(eventSample({ uri: '/test3' }));
     expect(S3.getObject).toBeCalledWith(
       expect.objectContaining({
         Key: '_redirects',
@@ -428,13 +424,9 @@ describe('📦 Middleware Redirects', () => {
   it('RulesGet cache should have TTF', async () => {
     expect.assertions(1);
     await delay(1100);
-    await testReroute(eventSample({ uri: '/test1' }), undefined, {
-      cacheTtl: 1,
-    });
+    await testReroute(eventSample({ uri: '/test1' }));
     await delay(1100);
-    await testReroute(eventSample({ uri: '/test2' }), undefined, {
-      cacheTtl: 1,
-    });
+    await testReroute(eventSample({ uri: '/test2' }));
     // expectNCallsWithArgs(S3.getObject.mock.calls, 2, [
     //   expect.objectContaining({
     //     Key: '_redirects',
