@@ -39,6 +39,7 @@
 		"lodash.omit": "^4.5.0",
 		"lodash.omitby": "^4.6.0",
 		"lodash.reduce": "^4.6.0",
+		"node-cache": "^4.2.0",
 		"path-match": "^1.2.4"
 	},
 	"devDependencies": {
