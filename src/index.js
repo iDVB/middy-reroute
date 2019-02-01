@@ -2,7 +2,7 @@ import logger from './utils/logger';
 import { STATUS_CODES } from 'http';
 import S3 from './s3';
 import axios from 'axios';
-import merge from './utils/deepmerge';
+import merge, { all as mergeAll } from './utils/deepmerge';
 import _find from 'lodash.find';
 import _reduce from 'lodash.reduce';
 import _omit from 'lodash.omit';
@@ -11,6 +11,7 @@ import { parse } from 'url';
 import path from 'path';
 import pathMatch from 'path-match';
 import CacheService from './utils/cache-service';
+import langParser from 'accept-language-parser';
 
 const ttl = 300; // default TTL of 30 seconds
 const cache = new CacheService(ttl);
@@ -21,24 +22,25 @@ const route = pathMatch({
   end: true,
 });
 
-let options, originBucket, incomingHost;
+let options;
 const rerouteMiddleware = async (opts = {}, handler, next) => {
   const { request } = handler.event.Records[0].cf;
   const { origin } = request;
-  incomingHost =
-    request.headers.host &&
-    request.headers.host[0] &&
-    request.headers.host[0].value;
+  const [host, country, language] = getHeaderValues(
+    ['host', 'cloudFront-viewer-country', 'accept-language'],
+    request.headers,
+  );
   const s3DomainName = origin && origin.s3 && origin.s3.domainName;
-  originBucket = s3DomainName && s3DomainName.replace('.s3.amazonaws.com', '');
-
+  const originBucket =
+    s3DomainName && s3DomainName.replace('.s3.amazonaws.com', '');
   const defaults = {
     file: '_redirects',
+    rules: undefined,
     multiFile: false,
     rulesBucket: originBucket,
     regex: {
       htmlEnd: /(.*)\/((.*)\.html?)$/,
-      ignoreRules: /^(?:#.*[\r\n]|\s*[\r\n])/gm,
+      ignoreRules: /^(?:\s*(?:#.*)*)$[\r\n]{0,1}|(?:#.*)*/gm,
       ruleline: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?(?:(?:\s+)?([^\s\r\n]+))?/,
       absoluteUri: /^(?:[a-z]+:)?\/\//,
     },
@@ -49,14 +51,31 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     custom404: `404.html`,
     cacheTtl: ttl,
   };
-  options = merge(defaults, opts);
+  options = mergeAll([
+    defaults,
+    opts,
+    {
+      originBucket,
+      host,
+      country,
+      language,
+    },
+  ]);
   cache.setDefaultTtl(options.cacheTtl);
 
   logger(`
-    Raw Event: ${JSON.stringify(handler.event)}
-    Middleware Options: ${JSON.stringify(options)}
-    Request Host: ${incomingHost}
-    Request Origin: ${s3DomainName}`);
+    Raw Event:
+    ${JSON.stringify(handler.event)}
+
+    Middleware Options:
+    ${JSON.stringify(options)}
+    ---- Request ----
+    URI: ${request.uri}
+    Host: ${options.host}
+    Origin: ${s3DomainName}
+    Country: ${options.country}
+    Language: ${options.language}
+    `);
 
   // Origin must be S3
   if (!s3DomainName) throw new Error('Must use S3 as Origin');
@@ -122,6 +141,10 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
 ///////////////////////
 // Utils     //
 ///////////////////////
+const getHeaderValues = (paramArr, headers) =>
+  paramArr.map(
+    param => headers[param] && headers[param][0] && headers[param][0].value,
+  );
 const isRedirectURI = status => options.redirectStatuses.includes(status);
 
 const isAbsoluteURI = to => {
@@ -193,8 +216,8 @@ const isBlacklistedProperty = name =>
 // Rules Parsing     //
 ///////////////////////
 const conditionMap = {
-  Language: 'Accept-Language',
-  Country: 'CloudFront-Viewer-Country',
+  Language: 'accept-language',
+  Country: 'cloudFront-viewer-country',
 };
 const replacePlaceholders = (obj, pattern) =>
   pattern.replace(/:(?!splat)(\w+)/g, (_, k) => obj[k]);
@@ -209,35 +232,63 @@ const replaceSplats = (obj, pattern) =>
 const replaceAll = (obj, pattern) =>
   replaceSplats(obj, replacePlaceholders(obj, pattern));
 
-const parseRules = stringFile =>
-  stringFile
-    // remove empty and commented lines
-    .replace(options.regex.ignoreRules, '')
-    // split all lines
-    .split(/[\r\n]/gm)
-    // strip out the last line break
-    .filter(l => l !== '')
-    .map(l => {
-      // regex
-      const [first, from, to, status, force, conditions] = l.match(
-        options.regex.ruleline,
-      );
-      // restructure into object
-      return {
-        from,
-        to,
-        status: status ? parseInt(status, 10) : options.defaultStatus,
-        force: !!force,
-        conditions,
-      };
-    });
+const parseConditions = conditions =>
+  !!conditions
+    ? conditions.split(';').reduce((results, next) => {
+        const [key, value] = next.split('=');
+        return { ...results, [key.toLowerCase()]: value.split(',') };
+      }, {})
+    : {};
+
+const parseRules = stringFile => {
+  logger('Parsing String: ', stringFile);
+  return (
+    stringFile
+      // remove empty and commented lines
+      .replace(options.regex.ignoreRules, '')
+      // split all lines
+      .split(/[\r\n]/gm)
+      // strip out the last line break
+      .filter(l => l !== '')
+      .map(l => {
+        // regex
+        const [first, from, to, status, force, conditions] = l.match(
+          options.regex.ruleline,
+        );
+        // restructure into object
+        return {
+          from,
+          to,
+          status: status ? parseInt(status, 10) : options.defaultStatus,
+          force: !!force,
+          conditions: parseConditions(conditions),
+        };
+      })
+  );
+};
 
 const findMatch = (data, uri) => {
   let params;
   const match = _find(data, o => {
     const from = route(o.from);
     params = from(parse(uri).pathname);
-    return params !== false;
+
+    // If there specific language rules, do they match
+    const languagePass = !!o.conditions.language
+      ? !!options.language &&
+        !!langParser.pick(o.conditions.language, options.language, {
+          loose: true,
+        })
+      : true;
+
+    // If there specific country rules, do they match
+    const countryPass = !!o.conditions.country
+      ? !!options.country && o.conditions.country.includes(options.country)
+      : true;
+
+    // Let's make sure all our conditions pass IF set
+    const passesConditions = languagePass && countryPass;
+    return params !== false && passesConditions;
   });
   return match && { ...match, parsedTo: replaceAll(params, match.to) };
 };
@@ -249,7 +300,7 @@ const doesKeyExist = rawKey => {
   const Key = rawKey.replace(/^\/+/, '');
   return cache.get(`doesKeyExist_${Key}`, () =>
     S3.headObject({
-      Bucket: originBucket,
+      Bucket: options.originBucket,
       Key,
     })
       .promise()
@@ -258,7 +309,7 @@ const doesKeyExist = rawKey => {
         return true;
       })
       .catch(err => {
-        if (err.errorType === 'NoSuchKey') {
+        if (err.errorType === 'NoSuchKey' || err.code === 'NotFound') {
           logger('doesKeyExist NOT Found: ', Key);
           return false;
         }
@@ -271,14 +322,14 @@ const doesKeyExist = rawKey => {
 const getRedirectData = () => {
   const Key = !options.multiFile
     ? options.file
-    : `${options.file}_${incomingHost}`;
+    : `${options.file}_${options.host}`;
   return cache.get(`getRedirectData_${Key}`, () => {
     logger(`
       Getting Rules from: ${options.rules ? 'Options' : 'S3'}
       Bucket: ${options.rulesBucket}
       Key: ${Key}`);
-    return options.rules
-      ? parseRules(options.rules)
+    return !!options.rules
+      ? Promise.resolve(parseRules(options.rules))
       : S3.getObject({
           Bucket: options.rulesBucket,
           Key,
@@ -325,7 +376,7 @@ const get404Response = () => {
   const Key = options.custom404;
   return cache.get(`get404Response_${Key}`, () =>
     S3.getObject({
-      Bucket: originBucket,
+      Bucket: options.originBucket,
       Key,
     })
       .promise()

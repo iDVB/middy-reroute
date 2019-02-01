@@ -127,7 +127,18 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
 
 # Proxying
 /api/*  https://api.example.com/:splat  200
+
+# Country
+/  /china   302  Country=cn,hk,tw
+/  /israel  302  Country=il
+
+# Language
+/china/*  /china/zh-cn/:splat  302  Language=zh
 ```
+
+> Country codes should be [iso3166](http://dev.maxmind.com/geoip/legacy/codes/iso3166/) and [language codes](http://www.metamodpro.com/browser-language-codes) the proper format.
+
+>For languages, note that en will match en-US and en-GB, zh will match zh-tw and zh-hk, etc.
 
 ## API
 
@@ -159,7 +170,7 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
       // 'ignoreRules' is used to identify lines in the rules file that should
       // be completely ignored.
       // Default: Ignores comments and empty lines.
-      ignoreRules: /^(?:#.*[\r\n]|\s*[\r\n])/gm,  // default
+      ignoreRules: /^(?:\s*(?:#.*)*)$[\r\n]{0,1}|(?:#.*)*/gm,  // default
 
       // 'ruleline' is used to parse each individual line of rules in the rules
       // file. Change this at your own discretion. At the very lease the same 
@@ -216,14 +227,20 @@ The following is a typical event object that gets fed into your Lambda@Edge func
         "request": {
           "clientIp": "99.99.999.999",
           "headers": {
-            "host": [
-              {
-                "key": "Host",
+            "host": [{
+              "key": "Host",
                 // 'value' will either be your [S3 bucket domain]
                 // OR your incoming [Host] depending on if you whitelist it
-                "value": "somedomain.com"
-              }
-            ]
+              "value": "somedomain.com"
+            }],
+            "cloudFront-viewer-country": [{
+              key:'CloudFront-Viewer-Country',
+              value: "CA"
+            }],
+            "accept-language": [{
+              key:'Accept-Language',
+              value: "en-GB,en-US;q=0.9,fr-CA;q=0.7,en;q=0.8"
+            }],
           },
           "method": "GET",
           "origin": {

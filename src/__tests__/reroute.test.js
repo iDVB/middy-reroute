@@ -64,32 +64,6 @@ describe('📦 Middleware Redirects', () => {
     });
   };
 
-  it('RulesGet should cache', async () => {
-    expect.assertions(2);
-    const midOpt = { cacheTtl: 1 };
-    await testReroute(eventSample({ uri: '/test1' }), undefined, midOpt);
-    await testReroute(eventSample({ uri: '/test2' }), undefined, midOpt);
-    await testReroute(eventSample({ uri: '/test3' }), undefined, midOpt);
-    expect(S3.getObject).toBeCalledWith(
-      expect.objectContaining({
-        Key: '_redirects',
-      }),
-    );
-    expect(S3.getObject).toHaveBeenCalledTimes(1);
-  });
-
-  it('RulesGet cache should have TTF', async () => {
-    expect.assertions(1);
-    const midOpt = { cacheTtl: 0 };
-    await testReroute(eventSample({ uri: '/test1' }), undefined, midOpt);
-    await testReroute(eventSample({ uri: '/test2' }), undefined, midOpt);
-    expectNCallsWithArgs(S3.getObject.mock.calls, 2, [
-      expect.objectContaining({
-        Key: '_redirects',
-      }),
-    ]);
-  });
-
   it('No _redirects file, no files should pass-through', async () => {
     const event = await testReroute(eventSample({ uri: '/asdf' }), {
       noFiles: ['asdf', 'asdf/index.html', '404.html', '_redirects'],
@@ -230,19 +204,49 @@ describe('📦 Middleware Redirects', () => {
     expect(event).toEqual(proxyResponseSample);
   });
 
-  // it('Axios should throw on crit error', async () => {
-  // const event = await testReroute(eventSample({ uri: '/internal7' }));
-  // expect(event).toEqual(redirectSample('/internal8', 303));
-  //   axios.mockImplementation(() => Promise.reject('Crit Error'));
-  //   testScenario(
-  //     eventSample({ uri: '/axiostest' }),
-  //     (err, event) => {
-  //       console.log({ err });
-  //       expect(err.msg).toEqual('Crit Error');
-  //     },
-  //     done,
-  //   );
-  // });
+  it('Condition Language match should work', async () => {
+    const rules = `/langtest  /match   302!  Language=en,fr`;
+    const matchEvent = await testReroute(
+      eventSample({
+        uri: '/langtest',
+        headers: {
+          'accept-language': 'en-GB,en-US;q=0.9,fr-CA;q=0.7,en;q=0.8',
+        },
+      }),
+      undefined,
+      { rules },
+    );
+    expect(matchEvent).toEqual(redirectSample('/match', 302));
+
+    const unMatchEvent = await testReroute(
+      eventSample({ uri: '/langtest' }),
+      undefined,
+      { rules },
+    );
+    expect(unMatchEvent).toEqual(eventSample({ uri: '/langtest/index.html' }));
+  });
+
+  it('Condition Country should work', async () => {
+    const rules = `/countrytest  /match   302!  Country=US,CA`;
+    const matchEvent = await testReroute(
+      eventSample({
+        uri: '/countrytest',
+        headers: { 'cloudFront-viewer-country': 'CA' },
+      }),
+      undefined,
+      { rules },
+    );
+    expect(matchEvent).toEqual(redirectSample('/match', 302));
+
+    const unMatchEvent = await testReroute(
+      eventSample({ uri: '/countrytest' }),
+      undefined,
+      { rules },
+    );
+    expect(unMatchEvent).toEqual(
+      eventSample({ uri: '/countrytest/index.html' }),
+    );
+  });
 
   it('Host FROM rule should work', async () => {
     axios.mockImplementation(() => Promise.resolve(axiosSample));
@@ -269,6 +273,46 @@ describe('📦 Middleware Redirects', () => {
     );
     expect(event).toEqual(eventSample({ uri: '/hosttest/index.html' }));
   });
+
+  it('RulesGet should cache', async () => {
+    expect.assertions(2);
+    const midOpt = { cacheTtl: 1 };
+    await testReroute(eventSample({ uri: '/test1' }), undefined, midOpt);
+    await testReroute(eventSample({ uri: '/test2' }), undefined, midOpt);
+    await testReroute(eventSample({ uri: '/test3' }), undefined, midOpt);
+    expect(S3.getObject).toBeCalledWith(
+      expect.objectContaining({
+        Key: '_redirects',
+      }),
+    );
+    expect(S3.getObject).toHaveBeenCalledTimes(1);
+  });
+
+  it('RulesGet cache should have TTF', async () => {
+    expect.assertions(1);
+    const midOpt = { cacheTtl: 0 };
+    await testReroute(eventSample({ uri: '/test1' }), undefined, midOpt);
+    await testReroute(eventSample({ uri: '/test2' }), undefined, midOpt);
+    expectNCallsWithArgs(S3.getObject.mock.calls, 2, [
+      expect.objectContaining({
+        Key: '_redirects',
+      }),
+    ]);
+  });
+
+  // it('Axios should throw on crit error', async () => {
+  // const event = await testReroute(eventSample({ uri: '/internal7' }));
+  // expect(event).toEqual(redirectSample('/internal8', 303));
+  //   axios.mockImplementation(() => Promise.reject('Crit Error'));
+  //   testScenario(
+  //     eventSample({ uri: '/axiostest' }),
+  //     (err, event) => {
+  //       console.log({ err });
+  //       expect(err.msg).toEqual('Crit Error');
+  //     },
+  //     done,
+  //   );
+  // });
 
   // it('Language Conditions should work', async () => {
   // const event = await testReroute(eventSample({ uri: '/internal7' }));
@@ -319,14 +363,9 @@ const expectNCallsWithArgs = (received, numCalls, expected) => {
 // Sample Events    //
 //////////////////////
 
-const eventSample = ({
-  uri,
-  headers: headerParams = {
-    host: 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
-  },
-}) => {
-  const headers = {
-    ...{
+const eventSample = ({ uri, headers: headerParams }) => {
+  const headers = merge(
+    {
       'user-agent': [
         {
           key: 'User-Agent',
@@ -338,6 +377,12 @@ const eventSample = ({
           key: 'Via',
           value:
             '1.1 435df4a736dacde836367e67036d6c56.cloudfront.net (CloudFront)',
+        },
+      ],
+      host: [
+        {
+          key: 'Host',
+          value: 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
         },
       ],
       'accept-encoding': [
@@ -359,8 +404,8 @@ const eventSample = ({
         },
       ],
     },
-    ...toKeyValueHeaders(headerParams),
-  };
+    toKeyValueHeaders(headerParams),
+  );
 
   return {
     Records: [

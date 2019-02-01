@@ -3,7 +3,8 @@
   "devDependencies": {
     "serverless": "^1.36.3",
     "serverless-plugin-cloudfront-lambda-edge": "^2.1.0",
-    "serverless-print-dots": "^1.0.4"
+    "serverless-print-dots": "^1.0.4",
+    "serverless-scriptable-plugin": "^0.8.0"
   },
   "scripts": {
     "postinstall": "node ./scripts/npmInstallRecursive.js"

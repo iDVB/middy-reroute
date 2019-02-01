@@ -4,11 +4,11 @@ frameworkVersion: ">=1.9.0 <2.0.0"
 
 custom:
   vars: ${file(vars.yml):${opt:stage, self:provider.stage}, file(vars.yml):dev}
-scriptHooks:
-  after:deploy:deploy:
-    - sh ./scripts/deploy_static_files.sh ${self:custom.vars.STACKNAME} ${opt:aws-profile}
-  before:remove:remove:
-    - sh ./scripts/remove_static_files.sh ${self:custom.vars.STACKNAME} ${opt:aws-profile}
+  scriptHooks:
+    after:deploy:deploy:
+      - sh ./scripts/deploy_static_files.sh ${self:custom.vars.STACKNAME} ${opt:aws-profile}
+    before:remove:remove:
+      - sh ./scripts/remove_static_files.sh ${self:custom.vars.STACKNAME} ${opt:aws-profile}
 
 provider:
   name: aws
@@ -197,6 +197,7 @@ resources:
 
 
 plugins:
+  - serverless-scriptable-plugin
   - serverless-plugin-cloudfront-lambda-edge
   - serverless-print-dots
 
