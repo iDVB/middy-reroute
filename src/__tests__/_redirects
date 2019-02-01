@@ -33,3 +33,6 @@
 # Proxy
 /api/*  https://api.github.com/:splat   200
 
+# Conditions
+/langtest   /langworked   301   Country=CA
+

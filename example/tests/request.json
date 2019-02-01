@@ -1,66 +1,31 @@
 {
   "Records": [
-      {
-          "cf": {
-              "config": {
-                  "distributionDomainName": "dtasdfafaafsd.cloudfront.net",
-                  "distributionId": "EI8PKLI0JZVZ8",
-                  "eventType": "origin-response"
-              },
-              "request": {
-                  "clientIp": "99.99.999.999",
-                  "headers": {
-                      "user-agent": [
-                          {
-                              "key": "User-Agent",
-                              "value": "Amazon CloudFront"
-                          }
-                      ],
-                      "via": [
-                          {
-                              "key": "Via",
-                              "value": "1.1 435df4a736dacde836367e67036d6c56.cloudfront.net (CloudFront)"
-                          }
-                      ],
-                      "accept-encoding": [
-                          {
-                              "key": "Accept-Encoding",
-                              "value": "gzip"
-                          }
-                      ],
-                      "upgrade-insecure-requests": [
-                          {
-                              "key": "upgrade-insecure-requests",
-                              "value": "1"
-                          }
-                      ],
-                      "x-forwarded-for": [
-                          {
-                              "key": "X-Forwarded-For",
-                              "value": "38.99.136.178"
-                          }
-                      ],
-                      "host": [
-                          {
-                              "key": "Host",
-                              "value": "middy-reroute-example-prod-defaultbucket-1d071oq92gmh9"
-                          }
-                      ]
-                  },
-                  "method": "GET",
-                  "origin": {
-                      "s3": {
-                          "authMethod": "origin-access-identity",
-                          "customHeaders": {},
-                          "domainName": "middy-reroute-example-prod-defaultbucket-1d071oq92gmh9",
-                          "path": "",
-                          "region": "us-east-1"
-                      }
-                  },
-                  "querystring": "",
-                  "uri": "/news"
+    {
+      "cf": {
+        "request": {
+          "clientIp": "99.99.999.999",
+          "headers": {
+            "host": [
+              {
+                "key": "Host",
+                "value": "middy-reroute-example-prod-defaultbucket-1d071oq92gmh9.s3.amazonaws.com"
               }
-          }
+            ]
+          },
+          "method": "GET",
+          "origin": {
+            "s3": {
+              "authMethod": "origin-access-identity",
+              "customHeaders": {},
+              "domainName": "middy-reroute-example-prod-defaultbucket-1d071oq92gmh9.s3.amazonaws.com",
+              "path": "",
+              "region": "us-east-1"
+            }
+          },
+          "querystring": "",
+          "uri": "/news"
+        }
       }
+    }
   ]
 }

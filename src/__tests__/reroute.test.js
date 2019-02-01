@@ -4,75 +4,433 @@ import middy from 'middy';
 import axios from 'axios';
 import reroute from '..';
 import { STATUS_CODES } from 'http';
+import _reduce from 'lodash.reduce';
+import merge from '../utils/deepmerge';
 
 const rules = fs.readFileSync(path.join(__dirname, '_redirects')).toString();
+const rulesDomain = fs
+  .readFileSync(path.join(__dirname, '_redirects_reroute.danvanbrunt.com'))
+  .toString();
 const html404 = fs.readFileSync(path.join(__dirname, '404.html')).toString();
 
 jest.mock('axios');
 jest.mock('../s3');
 import S3 from '../s3';
 
-const eventSample = uri => ({
-  Records: [
+describe('📦 Middleware Redirects', () => {
+  beforeEach(() => {
+    S3.headObject.mockReset();
+    S3.headObject.mockClear();
+    S3.getObject.mockReset();
+    S3.getObject.mockClear();
+    axios.mockReset();
+    axios.mockClear();
+  });
+
+  const testReroute = (request, testOpt = {}, midOpt = {}) => {
+    const testOptions = merge(
+      {
+        noFiles: [`nofilehere/index.html`, `pretty/things.html`],
+        fileContents: { _redirects: rules, '404.html': html404 },
+      },
+      testOpt,
+    );
+    const midOptions = merge(
+      {
+        cacheTtl: 0,
+      },
+      midOpt,
+    );
+    return new Promise((resolve, reject) => {
+      S3.headObject.mockImplementation(({ Key }) => ({
+        promise: () =>
+          testOptions.noFiles.includes(Key)
+            ? Promise.reject({ errorType: 'NoSuchKey' })
+            : Promise.resolve({ statusCode: 200 }),
+      }));
+      S3.getObject.mockImplementation(({ Key }) => ({
+        promise: () =>
+          testOptions.noFiles.includes(Key)
+            ? Promise.reject({ errorType: 'NoSuchKey' })
+            : Promise.resolve({ Body: testOptions.fileContents[Key] }),
+      }));
+
+      const handler = middy((event, context, cb) => cb(null, event));
+      handler.use(reroute(midOptions));
+      handler(request, {}, (err, event) => {
+        if (err) reject(err);
+        resolve(event);
+      });
+    });
+  };
+
+  it('No _redirects file, no files should pass-through', async () => {
+    const event = await testReroute(eventSample({ uri: '/asdf' }), {
+      noFiles: ['asdf', 'asdf/index.html', '404.html', '_redirects'],
+    });
+    expect(event).toEqual(eventSample({ uri: '/asdf/index.html' }));
+  });
+
+  it('No DefaultDoc should pass-through', async () => {
+    const event = await testReroute(eventSample({ uri: '/asdf' }), undefined, {
+      defaultDoc: null,
+    });
+    expect(event).toEqual(eventSample({ uri: '/asdf' }));
+  });
+
+  it('No FriendlyURLs should pass-through', async () => {
+    const event = await testReroute(
+      eventSample({ uri: '/asdf/index.html' }),
+      undefined,
+      {
+        friendlyUrls: false,
+      },
+    );
+    expect(event).toEqual(eventSample({ uri: '/asdf/index.html' }));
+  });
+
+  it('Root route should work', async () => {
+    const event = await testReroute(eventSample({ uri: '/' }));
+    expect(event).toEqual(eventSample({ uri: '/index.html' }));
+  });
+
+  it('Redirect should work', async () => {
+    const event = await testReroute(eventSample({ uri: '/internal1' }));
+    expect(event).toEqual(redirectSample('/internal2', 301));
+  });
+
+  it('Redirect (Internal) with 301 should work', async () => {
+    const event = await testReroute(eventSample({ uri: '/internal3' }));
+    expect(event).toEqual(redirectSample('/internal4', 301));
+  });
+
+  it('Redirect (Internal) with 302 should work', async () => {
+    const event = await testReroute(eventSample({ uri: '/internal5' }));
+    expect(event).toEqual(redirectSample('/internal6', 302));
+  });
+
+  it('Redirect (Internal) with 303 should work', async () => {
+    const event = await testReroute(eventSample({ uri: '/internal7' }));
+    expect(event).toEqual(redirectSample('/internal8', 303));
+  });
+
+  it('Redirect (External) should work', async () => {
+    const event = await testReroute(eventSample({ uri: '/internal9' }));
+    expect(event).toEqual(redirectSample('https://external.com', 301));
+  });
+
+  it('Basic Rewrites should work', async () => {
+    const event = await testReroute(eventSample({ uri: '/news/' }));
+    expect(event).toEqual(eventSample({ uri: '/blog/index.html' }));
+  });
+
+  it('Rewrites w/o file should custom 404', async () => {
+    const event = await testReroute(eventSample({ uri: '/stuff/' }));
+    expect(event).toEqual(error404Sample(html404));
+  });
+
+  it('Rewrites w/o file OR custom 404 should pass-through', async () => {
+    const event = await testReroute(eventSample({ uri: '/stuff/' }), {
+      noFiles: ['nofilehere/index.html', '404.html'],
+    });
+    expect(event).toEqual(eventSample({ uri: '/nofilehere/index.html' }));
+  });
+
+  it('Trailing slash normalization should work', async () => {
+    const event = await testReroute(eventSample({ uri: '/trailingslash' }));
+    expect(event).toEqual(redirectSample('/trailred', 301));
+  });
+
+  it('DefaultDoc with pass-throughs should work', async () => {
+    const event = await testReroute(eventSample({ uri: '/asdfdsfsd/' }));
+    expect(event).toEqual(eventSample({ uri: '/asdfdsfsd/index.html' }));
+  });
+
+  it('Placeholder (Internal) Redirects should work', async () => {
+    const event = await testReroute(
+      eventSample({ uri: '/news/2004/02/12/my-story' }),
+    );
+    expect(event).toEqual(redirectSample('/blog/12/02/2004/my-story', 301));
+  });
+
+  it('Placeholder (Internal) Rewrites should work', async () => {
+    const event = await testReroute(
+      eventSample({ uri: '/articles/2004/02/12/my-story' }),
+    );
+    expect(event).toEqual(
+      eventSample({ uri: '/stories/12/02/2004/my-story/index.html' }),
+    );
+  });
+
+  it('Placeholder (External) Redirects should work', async () => {
+    const event = await testReroute(
+      eventSample({ uri: '/things/2004/02/12/my-story' }),
+    );
+    expect(event).toEqual(
+      redirectSample('https://external.com/stuff/12/02/2004/my-story', 301),
+    );
+  });
+
+  it('Splats (Internal) should work', async () => {
+    const event = await testReroute(
+      eventSample({ uri: '/shop/2004/01/10/my-story' }),
+    );
+    expect(event).toEqual(redirectSample('/checkout/2004/01/10/my-story', 301));
+  });
+
+  it('Custom 404 missing should pass-through', async () => {
+    const event = await testReroute(eventSample({ uri: '/ecommerce' }), {
+      noFiles: ['store-closed/index.html', '404.html'],
+    });
+    expect(event).toEqual(eventSample({ uri: '/store-closed/index.html' }));
+  });
+
+  it('PrettyURLs should work', async () => {
+    const event = await testReroute(
+      eventSample({ uri: '/pretty/things.html' }),
+    );
+    expect(event).toEqual(redirectSample('/pretty/things/', 301));
+  });
+
+  it('PrettyURLs should be ignored for existing files', async () => {
+    const inputEvent = eventSample({ uri: '/something/about.html' });
+    const event = await testReroute(inputEvent);
+    expect(event).toEqual(inputEvent);
+  });
+
+  it('Proxying should work', async () => {
+    axios.mockImplementation(() => Promise.resolve(axiosSample));
+    const event = await testReroute(eventSample({ uri: '/api/users/iDVB' }));
+    expect(event).toEqual(proxyResponseSample);
+  });
+
+  it('Condition Language match should work', async () => {
+    const rules = `/langtest  /match   302!  Language=en,fr`;
+    const matchEvent = await testReroute(
+      eventSample({
+        uri: '/langtest',
+        headers: {
+          'accept-language': 'en-GB,en-US;q=0.9,fr-CA;q=0.7,en;q=0.8',
+        },
+      }),
+      undefined,
+      { rules },
+    );
+    expect(matchEvent).toEqual(redirectSample('/match', 302));
+
+    const unMatchEvent = await testReroute(
+      eventSample({ uri: '/langtest' }),
+      undefined,
+      { rules },
+    );
+    expect(unMatchEvent).toEqual(eventSample({ uri: '/langtest/index.html' }));
+  });
+
+  it('Condition Country should work', async () => {
+    const rules = `/countrytest  /match   302!  Country=US,CA`;
+    const matchEvent = await testReroute(
+      eventSample({
+        uri: '/countrytest',
+        headers: { 'cloudFront-viewer-country': 'CA' },
+      }),
+      undefined,
+      { rules },
+    );
+    expect(matchEvent).toEqual(redirectSample('/match', 302));
+
+    const unMatchEvent = await testReroute(
+      eventSample({ uri: '/countrytest' }),
+      undefined,
+      { rules },
+    );
+    expect(unMatchEvent).toEqual(
+      eventSample({ uri: '/countrytest/index.html' }),
+    );
+  });
+
+  it('Host FROM rule should work', async () => {
+    axios.mockImplementation(() => Promise.resolve(axiosSample));
+    const host = 'reroute.danvanbrunt.com';
+    const event = await testReroute(
+      eventSample({ uri: '/hosttest', headers: { host } }),
+      {
+        fileContents: { [`_redirects_${host}`]: rulesDomain },
+      },
+      { multiFile: true },
+    );
+    expect(event).toEqual(redirectSample('https://thestar.com', 301));
+  });
+
+  it('Host FROM with no rule should pass-through', async () => {
+    axios.mockImplementation(() => Promise.resolve(axiosSample));
+    const host = 'red.danvanbrunt.com';
+    const event = await testReroute(
+      eventSample({ uri: '/hosttest', headers: { host } }),
+      {
+        noFiles: [`_redirects_${host}`],
+      },
+      { multiFile: true },
+    );
+    expect(event).toEqual(eventSample({ uri: '/hosttest/index.html' }));
+  });
+
+  it('RulesGet should cache', async () => {
+    expect.assertions(2);
+    const midOpt = { cacheTtl: 1 };
+    await testReroute(eventSample({ uri: '/test1' }), undefined, midOpt);
+    await testReroute(eventSample({ uri: '/test2' }), undefined, midOpt);
+    await testReroute(eventSample({ uri: '/test3' }), undefined, midOpt);
+    expect(S3.getObject).toBeCalledWith(
+      expect.objectContaining({
+        Key: '_redirects',
+      }),
+    );
+    expect(S3.getObject).toHaveBeenCalledTimes(1);
+  });
+
+  it('RulesGet cache should have TTF', async () => {
+    expect.assertions(1);
+    const midOpt = { cacheTtl: 0 };
+    await testReroute(eventSample({ uri: '/test1' }), undefined, midOpt);
+    await testReroute(eventSample({ uri: '/test2' }), undefined, midOpt);
+    expectNCallsWithArgs(S3.getObject.mock.calls, 2, [
+      expect.objectContaining({
+        Key: '_redirects',
+      }),
+    ]);
+  });
+
+  // it('Axios should throw on crit error', async () => {
+  // const event = await testReroute(eventSample({ uri: '/internal7' }));
+  // expect(event).toEqual(redirectSample('/internal8', 303));
+  //   axios.mockImplementation(() => Promise.reject('Crit Error'));
+  //   testScenario(
+  //     eventSample({ uri: '/axiostest' }),
+  //     (err, event) => {
+  //       console.log({ err });
+  //       expect(err.msg).toEqual('Crit Error');
+  //     },
+  //     done,
+  //   );
+  // });
+
+  // it('Language Conditions should work', async () => {
+  // const event = await testReroute(eventSample({ uri: '/internal7' }));
+  // expect(event).toEqual(redirectSample('/internal8', 303));
+  //   testScenario(
+  //     eventSample('/langtest'),
+  //     (err, event) => {
+  //       expect(event).toEqual(eventSample('/langworked/index.html'));
+  //     },
+  //     done,
+  //   );
+  // });
+});
+
+//////////////////////
+// Utils            //
+//////////////////////
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+const capitalizeParam = param =>
+  param
+    .split('-')
+    .map(i => i.charAt(0).toUpperCase() + i.slice(1))
+    .join('-');
+const toKeyValue = (key, value) =>
+  !!value
+    ? {
+        [key]: [{ key: capitalizeParam(key), value }],
+      }
+    : {};
+
+const toKeyValueHeaders = headers =>
+  _reduce(
+    headers,
+    (results, value, key) => ({
+      ...results,
+      ...toKeyValue(key, value),
+    }),
+    {},
+  );
+
+const expectNCallsWithArgs = (received, numCalls, expected) => {
+  const calls = [...Array(numCalls)].map(() => expected);
+  return expect(received).toEqual(calls);
+};
+
+//////////////////////
+// Sample Events    //
+//////////////////////
+
+const eventSample = ({ uri, headers: headerParams }) => {
+  const headers = merge(
     {
-      cf: {
-        request: {
-          method: 'GET',
-          headers: {
-            'user-agent': [
-              {
-                key: 'User-Agent',
-                value: 'Amazon CloudFront',
+      'user-agent': [
+        {
+          key: 'User-Agent',
+          value: 'Amazon CloudFront',
+        },
+      ],
+      via: [
+        {
+          key: 'Via',
+          value:
+            '1.1 435df4a736dacde836367e67036d6c56.cloudfront.net (CloudFront)',
+        },
+      ],
+      host: [
+        {
+          key: 'Host',
+          value: 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
+        },
+      ],
+      'accept-encoding': [
+        {
+          key: 'Accept-Encoding',
+          value: 'gzip',
+        },
+      ],
+      'upgrade-insecure-requests': [
+        {
+          key: 'upgrade-insecure-requests',
+          value: '1',
+        },
+      ],
+      'x-forwarded-for': [
+        {
+          key: 'X-Forwarded-For',
+          value: '38.99.136.178',
+        },
+      ],
+    },
+    toKeyValueHeaders(headerParams),
+  );
+
+  return {
+    Records: [
+      {
+        cf: {
+          request: {
+            method: 'GET',
+            headers,
+            origin: {
+              s3: {
+                authMethod: 'origin-access-identity',
+                customHeaders: {},
+                domainName: 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
+                path: '',
+                region: 'us-east-1',
               },
-            ],
-            via: [
-              {
-                key: 'Via',
-                value:
-                  '1.1 435df4a736dacde836367e67036d6c56.cloudfront.net (CloudFront)',
-              },
-            ],
-            'accept-encoding': [
-              {
-                key: 'Accept-Encoding',
-                value: 'gzip',
-              },
-            ],
-            'upgrade-insecure-requests': [
-              {
-                key: 'upgrade-insecure-requests',
-                value: '1',
-              },
-            ],
-            'x-forwarded-for': [
-              {
-                key: 'X-Forwarded-For',
-                value: '38.99.136.178',
-              },
-            ],
-            host: [
-              {
-                key: 'Host',
-                value: 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
-              },
-            ],
-          },
-          origin: {
-            s3: {
-              authMethod: 'origin-access-identity',
-              customHeaders: {},
-              domainName: 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
-              path: '',
-              region: 'us-east-1',
             },
+            querystring: '',
+            uri,
           },
-          querystring: '',
-          uri,
         },
       },
-    },
-  ],
-});
+    ],
+  };
+};
 const redirectSample = (uri, status) => ({
   status,
   statusDescription: STATUS_CODES[status],
@@ -292,297 +650,3 @@ const proxyResponseSample = {
   status: 200,
   statusDescription: 'OK',
 };
-
-describe('📦 Middleware Redirects', () => {
-  beforeEach(() => {
-    S3.headObject.mockReset();
-    S3.headObject.mockClear();
-    S3.getObject.mockReset();
-    S3.getObject.mockClear();
-    axios.mockReset();
-    axios.mockClear();
-  });
-
-  const testScenario = (request, callback, done, testOpt, midOpt) => {
-    const testOptions = {
-      ...{
-        noFiles: [`nofilehere/index.html`, `pretty/things.html`],
-        fileContents: { _redirects: rules, '404.html': html404 },
-      },
-      ...testOpt,
-    };
-    const midOptions = {
-      ...{},
-      ...midOpt,
-    };
-
-    S3.headObject.mockImplementation(({ Key }) => ({
-      promise: () =>
-        testOptions.noFiles.includes(Key)
-          ? Promise.reject({ errorType: 'NoSuchKey' })
-          : Promise.resolve({ statusCode: 200 }),
-    }));
-    S3.getObject.mockImplementation(({ Key }) => ({
-      promise: () =>
-        testOptions.noFiles.includes(Key)
-          ? Promise.reject({ errorType: 'NoSuchKey' })
-          : Promise.resolve({ Body: testOptions.fileContents[Key] }),
-    }));
-
-    const handler = middy((event, context, cb) => cb(null, event));
-    handler.use(reroute(midOptions));
-    handler(request, {}, (err, event) => {
-      if (err) throw err;
-      callback(event);
-      done();
-    });
-  };
-
-  test('No _redirects file, no files should pass-through', done => {
-    testScenario(
-      eventSample('/asdf'),
-      event => {
-        expect(event).toEqual(eventSample('/asdf/index.html'));
-      },
-      done,
-      {
-        noFiles: ['asdf', 'asdf/index.html', '404.html', '_redirects'],
-      },
-    );
-  });
-
-  test('No DefaultDoc should pass-through', done => {
-    testScenario(
-      eventSample('/asdf'),
-      event => {
-        expect(event).toEqual(eventSample('/asdf'));
-      },
-      done,
-      null,
-      {
-        defaultDoc: null,
-      },
-    );
-  });
-
-  test('No FriendlyURLs should pass-through', done => {
-    testScenario(
-      eventSample('/asdf/index.html'),
-      event => {
-        expect(event).toEqual(eventSample('/asdf/index.html'));
-      },
-      done,
-      {
-        noFiles: ['asdf/index.html'],
-      },
-      {
-        friendlyUrls: false,
-      },
-    );
-  });
-
-  test('Root route should work', done => {
-    testScenario(
-      eventSample('/'),
-      event => {
-        expect(event).toEqual(eventSample('/index.html'));
-      },
-      done,
-    );
-  });
-
-  test('Redirect should work', done => {
-    testScenario(
-      eventSample('/internal1'),
-      event => {
-        // expect(S3.getObject).toBeCalled();
-        expect(event).toEqual(redirectSample('/internal2', 301));
-      },
-      done,
-    );
-  });
-
-  test('Redirect (Internal) with 301 should work', done => {
-    testScenario(
-      eventSample('/internal3'),
-      event => {
-        expect(event).toEqual(redirectSample('/internal4', 301));
-      },
-      done,
-    );
-  });
-
-  test('Redirect (Internal) with 302 should work', done => {
-    testScenario(
-      eventSample('/internal5'),
-      event => {
-        expect(event).toEqual(redirectSample('/internal6', 302));
-      },
-      done,
-    );
-  });
-
-  test('Redirect (Internal) with 303 should work', done => {
-    testScenario(
-      eventSample('/internal7'),
-      event => {
-        expect(event).toEqual(redirectSample('/internal8', 303));
-      },
-      done,
-    );
-  });
-
-  test('Redirect (External) should work', done => {
-    testScenario(
-      eventSample('/internal9'),
-      event => {
-        expect(event).toEqual(redirectSample('https://external.com', 301));
-      },
-      done,
-    );
-  });
-
-  test('Basic Rewrites should work', done => {
-    testScenario(
-      eventSample('/news/'),
-      event => {
-        expect(event).toEqual(eventSample('/blog/index.html'));
-      },
-      done,
-    );
-  });
-
-  test('Rewrites w/o file should custom 404', done => {
-    testScenario(
-      eventSample('/stuff/'),
-      event => {
-        expect(event).toEqual(error404Sample(html404));
-      },
-      done,
-    );
-  });
-
-  test('Rewrites w/o file OR custom 404 should pass-through', done => {
-    testScenario(
-      eventSample('/stuff/'),
-      event => {
-        expect(event).toEqual(eventSample('/nofilehere/index.html'));
-      },
-      done,
-      {
-        noFiles: ['nofilehere/index.html', '404.html'],
-      },
-    );
-  });
-
-  test('Trailing slash normalization should work', done => {
-    testScenario(
-      eventSample('/trailingslash'),
-      event => {
-        expect(event).toEqual(redirectSample('/trailred', 301));
-      },
-      done,
-    );
-  });
-
-  test('DefaultDoc with pass-throughs should work', done => {
-    testScenario(
-      eventSample('/asdfdsfsd/'),
-      event => {
-        expect(event).toEqual(eventSample('/asdfdsfsd/index.html'));
-      },
-      done,
-    );
-  });
-
-  test('Placeholder (Internal) Redirects should work', done => {
-    testScenario(
-      eventSample('/news/2004/02/12/my-story'),
-      event => {
-        expect(event).toEqual(redirectSample('/blog/12/02/2004/my-story', 301));
-      },
-      done,
-    );
-  });
-
-  test('Placeholder (Internal) Rewrites should work', done => {
-    testScenario(
-      eventSample('/articles/2004/02/12/my-story'),
-      event => {
-        expect(event).toEqual(
-          eventSample('/stories/12/02/2004/my-story/index.html'),
-        );
-      },
-      done,
-    );
-  });
-
-  test('Placeholder (External) Redirects should work', done => {
-    testScenario(
-      eventSample('/things/2004/02/12/my-story'),
-      event => {
-        expect(event).toEqual(
-          redirectSample('https://external.com/stuff/12/02/2004/my-story', 301),
-        );
-      },
-      done,
-    );
-  });
-
-  test('Splats (Internal) should work', done => {
-    testScenario(
-      eventSample('/shop/2004/01/10/my-story'),
-      event => {
-        expect(event).toEqual(
-          redirectSample('/checkout/2004/01/10/my-story', 301),
-        );
-      },
-      done,
-    );
-  });
-
-  test('Custom 404 missing should pass-through', done => {
-    testScenario(
-      eventSample('/ecommerce'),
-      event => {
-        expect(event).toEqual(eventSample('/store-closed/index.html'));
-      },
-      done,
-      {
-        noFiles: ['store-closed/index.html', '404.html'],
-      },
-    );
-  });
-
-  test('PrettyURLs should work', done => {
-    testScenario(
-      eventSample('/pretty/things.html'),
-      event => {
-        expect(event).toEqual(redirectSample('/pretty/things/', 301));
-      },
-      done,
-    );
-  });
-
-  test('PrettyURLs should be ignored for existing files', done => {
-    const inputEvent = eventSample('/something/about.html');
-    testScenario(
-      inputEvent,
-      event => {
-        expect(event).toEqual(inputEvent);
-      },
-      done,
-    );
-  });
-
-  test('Proxying should work', done => {
-    axios.mockImplementation(() => Promise.resolve(axiosSample));
-    testScenario(
-      eventSample('/api/users/iDVB'),
-      event => {
-        expect(event).toEqual(proxyResponseSample);
-      },
-      done,
-    );
-  });
-});

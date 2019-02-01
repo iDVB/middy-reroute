@@ -33,3 +33,11 @@
 # Proxy
 /api/*  https://api.github.com/:splat   200
 
+# Country
+/country   https://www.usa.gov/   302   Country=US
+/country   https://www.canada.ca   302   Country=CA
+
+# Language
+/language   https://en.wikipedia.org/wiki/French_language   302   Language=fr
+/language   https://en.wikipedia.org/wiki/English_language   302   Language=en
+

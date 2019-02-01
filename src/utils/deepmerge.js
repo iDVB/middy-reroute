@@ -1,10 +1,10 @@
 import merge from 'deepmerge';
 
 const deepmerge = (x, y, { arrayMerge, ...rest } = {}) =>
-  merge(x, y, { ...rest, arrayMerge: arrayMerge || combineMerge });
+  merge(x, y, { ...rest, arrayMerge: combineMerge });
 
 const all = (arr, { arrayMerge, ...rest } = {}) =>
-  merge.all(arr, { ...rest, arrayMerge: arrayMerge || combineMerge });
+  merge.all(arr, { ...rest, arrayMerge: combineMerge });
 
 const emptyTarget = value => (Array.isArray(value) ? [] : {});
 const clone = (value, options) => merge(emptyTarget(value), value, options);
