@@ -7,13 +7,20 @@
         text-align: center;
         background-color: #333333;
         font-size: 1.8em;
-        padding-top: 2em;
+        text-align: left;
       }
       body {
-        padding: 1em 0;
+        padding: 1em 0 0;
+      }
+      section {
+        padding: 0.3em 5em;
+      }
+      section h5 {
+        padding-left: 0;
       }
       h5 {
         margin-bottom: 0;
+        padding-left: 1em;
       }
       ul {
         margin: 0;
@@ -23,56 +30,119 @@
       a,a:link,a:active,a:visited,a:hover {
         color: white;
       }
+      pre {
+        font-size: 0.35em;
+        background:silver;
+        color: black;
+        padding: 3em 0.1em;
+      }
     </style>
     <title>middy-reroute</title>
   </head>
   <body>
 
-    <h2>middy-reroute</h2>
-    <h5>Basic Redirects:</h5>
-    <ul>
-      <li><a href="/internal1">/internal1</a></li>
-      <li><a href="/internal3">/internal3</a></li>
-      <li><a href="/internal5">/internal5</a></li>
-      <li><a href="/internal7">/internal7</a></li>
-      <li><a href="/internal9">/internal9</a></li>
-    </ul>
+    <section>
+      <h2>middy-reroute</h2>
+      <h5>Basic Redirects:</h5>
+      <ul>
+        <li><a href="/internal1">/internal1</a></li>
+        <li><a href="/internal3">/internal3</a></li>
+        <li><a href="/internal5">/internal5</a></li>
+        <li><a href="/internal7">/internal7</a></li>
+        <li><a href="/internal9">/internal9</a></li>
+      </ul>
 
-    <h5>Rewrites:</h5>
-    <ul>
-      <li><a href="/news">/news</a></li>
-      <li><a href="/stuff">/stuff</a></li>
-    </ul>
+      <h5>Rewrites:</h5>
+      <ul>
+        <li><a href="/news">/news</a></li>
+        <li><a href="/stuff">/stuff</a></li>
+      </ul>
 
-    <h5>Trailing Slashes:</h5>
-    <ul>
-      <li><a href="/stuff">/stuff</a></li>
-      <li><a href="/stuff/">/stuff/</a></li>
-    </ul>
+      <h5>Trailing Slashes:</h5>
+      <ul>
+        <li><a href="/stuff">/stuff</a></li>
+        <li><a href="/stuff/">/stuff/</a></li>
+      </ul>
 
-    <h5>Placeholders / Splats:</h5>
-    <ul>
-      <li><a href="/news/2004/02/12/my-story">/news/2004/02/12/my-story</a></li>
-      <li><a href="/articles/2004/02/12/my-story">/articles/2004/02/12/my-story</a></li>
-      <li><a href="/shop/2004/01/10/my-story">/shop/2004/01/10/my-story</a></li>
-    </ul>
+      <h5>Placeholders / Splats:</h5>
+      <ul>
+        <li><a href="/news/2004/02/12/my-story">/news/2004/02/12/my-story</a></li>
+        <li><a href="/articles/2004/02/12/my-story">/articles/2004/02/12/my-story</a></li>
+        <li><a href="/shop/2004/01/10/my-story">/shop/2004/01/10/my-story</a></li>
+      </ul>
 
-    <h5>PrettyURLs:</h5>
-    <ul>
-      <li><a href="/pretty/things.html">/pretty/things.html</a></li>
-      <li><a href="/something/about.html">/something/about.html</a></li>
-    </ul>
+      <h5>PrettyURLs:</h5>
+      <ul>
+        <li><a href="/pretty/things.html">/pretty/things.html</a></li>
+        <li><a href="/something/about.html">/something/about.html</a></li>
+      </ul>
 
-    <h5>Proxying:</h5>
-    <ul>
-      <li><a href="/api/users/iDVB">/api/users/iDVB</a></li>
-    </ul>
+      <h5>Proxying:</h5>
+      <ul>
+        <li><a href="/api/users/iDVB">/api/users/iDVB</a></li>
+      </ul>
 
-    <h5>Domain Specific Rules:</h5>
-    <ul>
-      <li><a href="https://reroute.danvanbrunt.com/hosttest">https://reroute.danvanbrunt.com/hosttest</a></li>
-      <li><a href="https://red.danvanbrunt.com/hosttest">https://red.danvanbrunt.com/hosttest</a></li>
-    </ul>
+      <h5>Domain Specific Rules:</h5>
+      <ul>
+        <li><a href="https://reroute.danvanbrunt.com/hosttest">https://reroute.danvanbrunt.com/hosttest</a></li>
+        <li><a href="https://red.danvanbrunt.com/hosttest">https://red.danvanbrunt.com/hosttest</a></li>
+      </ul>
+
+      <h5>Country Rules:</h5>
+      <ul>
+        <li><a href="/country">/country</a> - (try vpn from US and CA) </li>
+      </ul>
+
+      <h5>Language Rules:</h5>
+      <ul>
+        <li><a href="/country">/language</a> - (try setting en and fr) </li>
+      </ul>
+
+    </section>
+    <h5>Rules:</h5>
+    <pre>
+      # https://www.netlify.com/docs/redirects/
+
+      /internal1  /internal2
+      /internal3  /internal4            301
+      /internal5  /internal6            302
+      /internal7  /internal8            303
+      /internal9  https://external.com  302
+      
+      /trailingslash/  /trailred
+      
+      # Rewrites
+      /news   /blog         200
+      /stuff  /nofilehere   200
+      
+      # Placeholders
+      /news/:year/:month/:date/:slug      /blog/:date/:month/:year/:slug
+      /articles/:year/:month/:date/:slug  /stories/:date/:month/:year/:slug  200
+      /things/:year/:month/:date/:slug    https://external.com/stuff/:date/:month/:year/:slug
+      
+      # Splats
+      /shop/*  /checkout/:splat
+      
+      # Custom 404
+      /ecommerce  /store-closed   404
+      
+      # Existing URI
+      /existing/index.php  /nowork
+      
+      # Existing URI FORCED
+      /something/index.html  /works  301!
+      
+      # Proxy
+      /api/*  https://api.github.com/:splat   200
+      
+      # Country
+      /country   https://www.usa.gov/   302   Country=US
+      /country   https://www.canada.ca  302   Country=CA
+      
+      # Language
+      /language   https://en.wikipedia.org/wiki/French_language   302   Language=fr
+      /language   https://en.wikipedia.org/wiki/English_language  302   Language=en
+    </pre>
 
 
   </body>
