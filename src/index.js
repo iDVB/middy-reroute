@@ -27,7 +27,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
   const { request } = handler.event.Records[0].cf;
   const { origin } = request;
   const [host, country, language] = getHeaderValues(
-    ['host', 'cloudFront-viewer-country', 'accept-language'],
+    ['host', 'cloudfront-viewer-country', 'accept-language'],
     request.headers,
   );
   const s3DomainName = origin && origin.s3 && origin.s3.domainName;
@@ -215,10 +215,6 @@ const isBlacklistedProperty = name =>
 ///////////////////////
 // Rules Parsing     //
 ///////////////////////
-const conditionMap = {
-  Language: 'accept-language',
-  Country: 'cloudFront-viewer-country',
-};
 const replacePlaceholders = (obj, pattern) =>
   pattern.replace(/:(?!splat)(\w+)/g, (_, k) => obj[k]);
 

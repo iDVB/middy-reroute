@@ -231,7 +231,7 @@ describe('📦 Middleware Redirects', () => {
     const matchEvent = await testReroute(
       eventSample({
         uri: '/countrytest',
-        headers: { 'cloudFront-viewer-country': 'CA' },
+        headers: { 'cloudfront-viewer-country': 'CA' },
       }),
       undefined,
       { rules },
@@ -330,7 +330,9 @@ describe('📦 Middleware Redirects', () => {
 //////////////////////
 // Utils            //
 //////////////////////
-
+const headerMap = {
+  'cloudfront-viewer-country': 'CloudFront-Viewer-Country',
+};
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 const capitalizeParam = param =>
   param
@@ -340,7 +342,7 @@ const capitalizeParam = param =>
 const toKeyValue = (key, value) =>
   !!value
     ? {
-        [key]: [{ key: capitalizeParam(key), value }],
+        [key]: [{ key: headerMap[key] || capitalizeParam(key), value }],
       }
     : {};
 
