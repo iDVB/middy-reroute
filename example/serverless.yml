@@ -125,7 +125,7 @@ resources:
               - HEAD
             Compress: true
             ForwardedValues:
-              QueryString: false
+              QueryString: true
               Cookies:
                 Forward: none
               Headers:
