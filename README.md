@@ -211,7 +211,12 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
     // 'cacheTtl' is the TTL in seconds that S3 calls should be cached.
     //  Eg. get rules file or custom404
     //  set to 0 to disable caching
-    cacheTtl: 300 // secounds default
+    cacheTtl: 300, // secounds default
+
+    // 'incomingProtocol' is protocal prepended to the HOST and URI before
+    //  looking in the rules for a match. If you configure CloudFront to
+    //  forward http to https then this should always be the default.
+    incomingProtocol: 'https://',  // default
   };
 ```
 
