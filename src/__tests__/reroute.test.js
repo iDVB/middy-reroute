@@ -216,7 +216,7 @@ describe('📦 Middleware Redirects', () => {
   });
 
   describe('Host Domains', () => {
-    it('Host FROM rule should work', async () => {
+    it('FROM rule should work', async () => {
       axios.mockImplementation(() => Promise.resolve(axiosSample));
       const host = 'reroute.danvanbrunt.com';
       const event = await testReroute(
@@ -229,7 +229,7 @@ describe('📦 Middleware Redirects', () => {
       expect(event).toEqual(redirectSample('https://thestar.com', 301));
     });
 
-    it('Host FROM with no rule should pass-through', async () => {
+    it('FROM with no rule should pass-through', async () => {
       axios.mockImplementation(() => Promise.resolve(axiosSample));
       const host = 'red.danvanbrunt.com';
       const event = await testReroute(
@@ -240,6 +240,29 @@ describe('📦 Middleware Redirects', () => {
         { multiFile: true },
       );
       expect(event).toEqual(eventSample({ uri: '/hosttest/index.html' }));
+    });
+
+    it('Absolute FROM should work', async () => {
+      const host1 = 'red.danvanbrunt.com';
+      const host2 = 'blue.danvanbrunt.com';
+      const rules = `
+        https://${host1}/local  https://twitter.com   302!
+        /local  https://www.cnn.com   302!
+      `;
+
+      const matchEvent = await testReroute(
+        eventSample({ uri: '/local', headers: { host: host1 } }),
+        undefined,
+        { rules },
+      );
+      expect(matchEvent).toEqual(redirectSample('https://twitter.com', 302));
+
+      const unMatchEvent = await testReroute(
+        eventSample({ uri: '/local', headers: { host: host2 } }),
+        undefined,
+        { rules },
+      );
+      expect(unMatchEvent).toEqual(redirectSample('https://www.cnn.com', 302));
     });
   });
 

@@ -50,6 +50,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     defaultDoc: `index.html`,
     custom404: `404.html`,
     cacheTtl: ttl,
+    incomingProtocol: 'https://',
   };
   options = mergeAll([
     defaults,
@@ -103,7 +104,12 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
       logger('Rules: ', data);
 
       // Find URI match in the rules
-      const match = findMatch(data, request.uri);
+      const match = findMatch(
+        data,
+        request.uri,
+        host,
+        options.incomingProtocol,
+      );
       if (match) {
         logger('Match FOUND: ', match.parsedTo);
         // Match: match found
@@ -263,11 +269,12 @@ const parseRules = stringFile => {
   );
 };
 
-const findMatch = (data, uri) => {
+const findMatch = (data, path, host, protocol) => {
   let params;
+  const fullUri = host && `${protocol}${host}${path}`;
   const match = _find(data, o => {
     const from = route(o.from);
-    params = from(parse(uri).pathname);
+    params = isAbsoluteURI(o.from) ? from(fullUri) : from(parse(path).pathname);
 
     // If there specific language rules, do they match
     const languagePass = !!o.conditions.language
