@@ -4,7 +4,7 @@ import merge from './utils/deepmerge';
 import DDB from './ddb';
 
 const S3_SUFFIX = '.s3.amazonaws.com';
-const ORIGIN_DOMAIN_DOTPATH = 'Records.0.cf.request.origin.s3.domainName';
+const ORIGIN_S3_DOTPATH = 'Records.0.cf.request.origin.s3';
 
 const rerouteOrigin = async (opts = {}, handler, next) => {
   const { context } = handler;
@@ -12,15 +12,14 @@ const rerouteOrigin = async (opts = {}, handler, next) => {
   const { origin } = request;
   const [host] = getHeaderValues(['host'], request.headers);
   const s3DomainName = origin && origin.s3 && origin.s3.domainName;
-  const originBucket =
-    s3DomainName && s3DomainName.replace('.s3.amazonaws.com', '');
+  const originBucket = s3DomainName && s3DomainName.replace(S3_SUFFIX, '');
 
   const tableSuffix = '-domainmap';
   const functionSuffix = '-originrequest';
   const defaults = {
     functionSuffix,
     tableSuffix,
-    tableName: getTableFromFunction(
+    tableName: getTableFromFunctionName(
       context.functionName,
       functionSuffix,
       tableSuffix,
@@ -42,13 +41,16 @@ const rerouteOrigin = async (opts = {}, handler, next) => {
 
   try {
     const domainData = await getDomainData(options.tableName, host);
-    logger(`
-      domainData: ${JSON.stringify(domainData)}
-      ORIGIN_DOMAIN_DOTPATH: ${ORIGIN_DOMAIN_DOTPATH}
-    `);
-    const test = dotProp.set({}, ORIGIN_DOMAIN_DOTPATH, domainData.origin);
-    console.log('dset:', JSON.stringify(test));
-    handler.event = !!domainData ? merge(handler.event, test) : handler.event;
+    logger({ getDomainData: domainData });
+    handler.event = !!domainData
+      ? merge(
+          handler.event,
+          dotProp.set({}, ORIGIN_S3_DOTPATH, {
+            region: domainData.region,
+            domainName: `${domainData.origin}${S3_SUFFIX}`,
+          }),
+        )
+      : handler.event;
   } catch (err) {
     logger('Throwing Error for main thread');
     throw err;
@@ -71,7 +73,11 @@ const getHeaderValues = (paramArr, headers) =>
 
 // from:  us-east-1.marketing-stack-proxy-prod-viewerRequest
 // to:    marketing-stack-proxy-prod-originmap
-const getTableFromFunction = (functionName, functionSuffix, tableSuffix) => {
+const getTableFromFunctionName = (
+  functionName,
+  functionSuffix,
+  tableSuffix,
+) => {
   const [rest, stackname] = functionName.match(
     `^us-east-1\.(.+)${functionSuffix}$`,
   );
