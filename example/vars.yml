@@ -2,6 +2,7 @@ default: &default
   STAGE: ${opt:stage, 'dev'}
   STACKNAME: ${self:service}-${self:custom.vars.STAGE}
   ALIASES: {Ref : "AWS::NoValue"}
+  TABLENAMEFORMAT: '${self:custom.vars.STACKNAME}-*'
   TAGS:
     - Key: STAGE
       Value: ${self:custom.vars.STAGE}

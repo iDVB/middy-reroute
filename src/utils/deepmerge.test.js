@@ -1,5 +1,4 @@
-import merge from '../deepmerge';
-import { all as mergeAll } from '../deepmerge';
+import merge, { all as mergeAll } from '../utils/deepmerge';
 
 const obj1 = {
   this: 'test',
@@ -29,7 +28,7 @@ const obj3 = {
   },
 };
 
-describe('📦 Middleware Redirects', () => {
+describe('📦  deepmerge', () => {
   test('Merge should work', () => {
     const result = {
       this: 'other',

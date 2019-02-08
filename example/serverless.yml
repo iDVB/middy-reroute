@@ -85,6 +85,34 @@ resources:
                   Resource:
                     - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}]]}
                     - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}, "/*"]]}
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:Query
+                    - dynamodb:DescribeStream
+                    - dynamodb:GetRecords
+                    - dynamodb:GetShardIterator
+                    - dynamodb:ListStreams
+                  Resource:
+                    - "Fn::Join":
+                        - ""
+                        -
+                          - "arn:aws:dynamodb:"
+                          - {Ref: "AWS::Region"}
+                          - ":"
+                          - {Ref: "AWS::AccountId"}
+                          - ":table/"
+                          - ${self:custom.vars.TABLENAMEFORMAT}
+                    - "Fn::Join":
+                        - ""
+                        -
+                          - "arn:aws:dynamodb:"
+                          - {Ref: "AWS::Region"}
+                          - ":"
+                          - {Ref: "AWS::AccountId"}
+                          - ":table/"
+                          - ${self:custom.vars.TABLENAMEFORMAT}
+                          - '/index/*'
     BucketPolicy:
       Type: "AWS::S3::BucketPolicy"
       Properties:
@@ -183,6 +211,19 @@ resources:
           - red.danvanbrunt.com
           - green.danvanbrunt.com
           - blue.danvanbrunt.com
+    DomainMapTBL:
+      Type: "AWS::DynamoDB::Table"
+      Properties:
+        TableName: ${self:custom.stackname}-domainmap
+        AttributeDefinitions:
+          - AttributeName: Host
+            AttributeType: S
+        KeySchema:
+          - AttributeName: Host
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 300
+          WriteCapacityUnits: 5
 
   Outputs:
     SiteUrl:
