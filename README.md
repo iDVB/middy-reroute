@@ -270,6 +270,62 @@ The following is a typical event object that gets fed into your Lambda@Edge func
 }
 ```
 
+## Roadmap
+
+There are still a few things that Netlify's rules can do that middy-reroute can't. Additionally, there are quite a few new ones that come to mind that would be great.
+
+### [Querystrings](https://www.netlify.com/docs/redirects/#query-params) that are placeholder-able
+
+```markdown
+# base case
+/path/* /otherpath/:splat 301​
+
+# one value or the other.  Must match exactly!
+/path/* param1=:value1 /otherpath/:value1/:splat 301
+/path/* param2=:value2 /otherpath/:value2/:splat 301​
+
+# both values - ordering from the browser doesn't matter.
+/path/* param1=:value1 param2=:value2 /otherpath/:value1/:value2/:splat 301
+```
+
+### [Access control](https://www.netlify.com/docs/redirects/#role-based-redirect-rules) dependent rules
+
+This is an example of a feature that already exists using Netlify's rules. However, since this would require the middleware having a handle of you application's business logic, we'd need to think about how to best pass this into the middleware, to allow for customization. At the end of the day, the middleware is just going to parse the JWT token and match the important role bits to the rules. So we'd at least need to pass the middleware the role param path (in JWT) and the JWT secret or function for parsing the secret.
+
+```markdown
+/admin/*	200!	Role=admin
+```
+
+### Flattening chained rules
+
+Another existing Netlify feature that I believe gets applied to all rules. Currently, middy-reroute just applies that `first` rule it finds in the rules from top-to-bottom.
+
+```markdown
+/redirect1      /redirect2      302
+/redirect2      /redirect3      302
+
+# =>  /redirect1   /redirect3   302`
+```
+
+### Conditions that are placeholder-able
+
+```markdown
+/country_flag.jpg      /flags/:country.jpg     200
+# =>  /country_flag.jpg    /flags/ca.jpg    200`
+
+/country_flag.jpg      /flags/:COUNTRY.jpg     200
+# =>  /country_flag.jpg    /flags/CA.jpg    200`
+```
+
+### Placeholder-able values ??
+
+```markdown
+# Date
+/thismonth     /events/:year/:month/:day    302
+
+
+```
+
 ## Contributing
 
 Everyone is very welcome to contribute to this repository. Feel free to [raise issues](https://github.com/iDVB/middy-reroute/issues) or to [submit Pull Requests](https://github.com/iDVB/middy-reroute/pulls).
