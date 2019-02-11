@@ -270,7 +270,7 @@ The following is a typical event object that gets fed into your Lambda@Edge func
 }
 ```
 
-## Roadmap
+## Future Features?
 
 There are still a few things that Netlify's rules can do that middy-reroute can't. Additionally, there are quite a few new ones that come to mind that would be great.
 
@@ -292,38 +292,31 @@ There are still a few things that Netlify's rules can do that middy-reroute can'
 
 This is an example of a feature that already exists using Netlify's rules. However, since this would require the middleware having a handle of you application's business logic, we'd need to think about how to best pass this into the middleware, to allow for customization. At the end of the day, the middleware is just going to parse the JWT token and match the important role bits to the rules. So we'd at least need to pass the middleware the role param path (in JWT) and the JWT secret or function for parsing the secret.
 
-```markdown
+```bash
 /admin/*	200!	Role=admin
 ```
 
 ### Flattening chained rules
 
-Another existing Netlify feature that I believe gets applied to all rules. Currently, middy-reroute just applies that `first` rule it finds in the rules from top-to-bottom.
+Another existing Netlify feature that I believe gets applied to all rules. Currently, middy-reroute just applies that `first` rule it finds in the rules file from top-to-bottom.
 
-```markdown
-/redirect1      /redirect2      302
-/redirect2      /redirect3      302
+```bash
+      /redirect1   /redirect2   302
+      /redirect2   /redirect3   302
 
 # =>  /redirect1   /redirect3   302`
 ```
 
 ### Conditions that are placeholder-able
 
-```markdown
-/country_flag.jpg      /flags/:country.jpg     200
-# =>  /country_flag.jpg    /flags/ca.jpg    200`
+Thought this could be neat if there was a way to use the matched condition in the resolved URI somehow. Not sure what the proper indentifier would be though. And I could see you may want to define character case.
 
-/country_flag.jpg      /flags/:COUNTRY.jpg     200
-# =>  /country_flag.jpg    /flags/CA.jpg    200`
-```
+```bash
+      /country_flag.gif   /flags/::country.gif     200
+# =>  /country_flag.gif   /flags/ca.gif           200`
 
-### Placeholder-able values ??
-
-```markdown
-# Date
-/thismonth     /events/:year/:month/:day    302
-
-
+      /country_flag.gif   /flags/::COUNTRY.gif     200
+# =>  /country_flag.gif   /flags/CA.gif           200`
 ```
 
 ## Contributing
