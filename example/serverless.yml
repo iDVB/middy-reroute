@@ -14,6 +14,7 @@ provider:
   name: aws
   region: us-east-1
   runtime: nodejs8.10
+  tracing: true
   stackTags:
     STAGE: ${self:custom.vars.STAGE}
     SERVICE: ${self:service}
@@ -21,7 +22,7 @@ provider:
 functions:
   reroute:
     handler: functions/reroute/index.handler
-    memorySize: 128
+    memorySize: 512
     timeout: 5
     role: RerouteRole
     lambdaAtEdge:
@@ -113,6 +114,12 @@ resources:
                           - ":table/"
                           - ${self:custom.vars.TABLENAMEFORMAT}
                           - '/index/*'
+                - Effect: "Allow"
+                  Action:
+                    - "xray:PutTraceSegments"
+                    - "xray:PutTelemetryRecords"
+                  Resource:
+                    - "*"
     BucketPolicy:
       Type: "AWS::S3::BucketPolicy"
       Properties:
@@ -214,7 +221,7 @@ resources:
     DomainMapTBL:
       Type: "AWS::DynamoDB::Table"
       Properties:
-        TableName: ${self:custom.stackname}-domainmap
+        TableName: ${self:custom.vars.STACKNAME}-domainmap
         AttributeDefinitions:
           - AttributeName: Host
             AttributeType: S
@@ -238,6 +245,7 @@ resources:
 
 
 plugins:
+  - serverless-plugin-tracing
   - serverless-scriptable-plugin
   - serverless-plugin-cloudfront-lambda-edge
   - serverless-print-dots

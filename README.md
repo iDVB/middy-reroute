@@ -155,7 +155,7 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
     // `${options.file}_${host}`
     // Eg. multiFile: true (and the host is domain.com)
     //     _redirects_domain.com
-    multiFile: true,  // default
+    multiFile: false,  // default
 
     // 'rulesBucket' is the bucket to reference when looking for the rules files
     // Default: As a default the origin bucket is used.
