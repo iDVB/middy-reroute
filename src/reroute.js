@@ -326,7 +326,8 @@ const getRedirectData = () => {
   const Key = !options.multiFile
     ? options.file
     : `${options.file}_${options.host}`;
-  return cache.get(`getRedirectData_${Key}`, () => {
+  const cacheKey = `${options.rulesBucket}_${Key}`;
+  return cache.get(`getRedirectData_${cacheKey}`, () => {
     logger(`
       Getting Rules from: ${options.rules ? 'Options' : 'S3'}
       Bucket: ${options.rulesBucket}

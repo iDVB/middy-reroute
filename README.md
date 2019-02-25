@@ -80,7 +80,7 @@ Example:
 # handler.js
 
 const middy = require('middy');
-const reroute = require('middy-reroute');
+const { reroute } = require('middy-reroute');
 
 // This is your typical handler. The only difference here is that you know that the event you get will already be manipulated by the middy-reroute middleware.
 const finalHandler = (event, context, callback) => {

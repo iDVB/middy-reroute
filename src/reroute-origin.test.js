@@ -3,23 +3,9 @@ import _reduce from 'lodash.reduce';
 import dotProp from 'dot-prop-immutable';
 import { rerouteOrigin } from '.';
 import merge from './utils/deepmerge';
-import { eventResponse } from './tests/responses';
+import { eventResponse, ddbResponse } from './tests/responses';
 
 const ORIGIN_S3_DOTPATH = 'Records.0.cf.request.origin.s3';
-
-const ddbResponse = (host, table, region = 'us-east-1') => ({
-  Item: {
-    Host: {
-      S: host,
-    },
-    Region: {
-      S: region,
-    },
-    Origin: {
-      S: table,
-    },
-  },
-});
 
 jest.mock('./ddb');
 import DDB from './ddb';
@@ -30,7 +16,11 @@ describe('📦  Reroute Origin', () => {
     DDB.getItem.mockClear();
   });
 
-  const testReroute = (request, testOpt = {}, midOpt = {}) => {
+  const testReroute = ({
+    event,
+    testOptions: testOpt = {},
+    midOptions: midOpt = {},
+  }) => {
     const testOptions = merge({}, testOpt);
     const midOptions = merge({}, midOpt);
     return new Promise((resolve, reject) => {
@@ -49,7 +39,7 @@ describe('📦  Reroute Origin', () => {
       const handler = middy((event, context, cb) => cb(null, event));
       handler.use(rerouteOrigin(midOptions));
       handler(
-        request,
+        event,
         { functionName: 'us-east-1.middy-reroute-example-prod-originrequest' },
         (err, event) => {
           if (err) reject(err);
@@ -64,14 +54,14 @@ describe('📦  Reroute Origin', () => {
     const domainMap = {
       'blue.danvanbrunt.com': 'middy-reroute-origin-blue.s3.amazonaws.com',
     };
-    const event = await testReroute(
-      eventResponse({ uri: '/thingy', headers }),
-      { domainMap },
-    );
+    const event = await testReroute({
+      event: eventResponse({ uri: '/thingy', headers }),
+      testOptions: { domainMap },
+    });
     expect(event).toEqual(
       eventResponse(
         { uri: '/thingy', headers },
-        dotProp.set({}, ORIGIN_S3_DOTPATH, {
+        dotProp.merge({ Records: [] }, ORIGIN_S3_DOTPATH, {
           domainName: 'middy-reroute-origin-blue.s3.amazonaws.com',
           region: 'us-east-1',
         }),

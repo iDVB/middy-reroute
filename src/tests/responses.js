@@ -2,7 +2,14 @@ import _reduce from 'lodash.reduce';
 import { STATUS_CODES } from 'http';
 import merge from '../utils/deepmerge';
 
-const eventResponse = ({ uri, headers: headerParams }, override = {}) => {
+const eventResponse = (
+  {
+    uri,
+    domainName = 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
+    headers: headerParams,
+  },
+  override = {},
+) => {
   const headers = merge(
     {
       'user-agent': [
@@ -58,7 +65,7 @@ const eventResponse = ({ uri, headers: headerParams }, override = {}) => {
                 s3: {
                   authMethod: 'origin-access-identity',
                   customHeaders: {},
-                  domainName: 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
+                  domainName,
                   path: '',
                   region: 'us-east-1',
                 },
@@ -292,6 +299,19 @@ const proxyResponse = {
   status: 200,
   statusDescription: 'OK',
 };
+const ddbResponse = (host, table, region = 'us-east-1') => ({
+  Item: {
+    Host: {
+      S: host,
+    },
+    Region: {
+      S: region,
+    },
+    Origin: {
+      S: table,
+    },
+  },
+});
 
 //////////////////////
 // Utils            //
@@ -328,4 +348,5 @@ export {
   customResponse,
   axiosResponse,
   proxyResponse,
+  ddbResponse,
 };

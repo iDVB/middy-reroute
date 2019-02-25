@@ -49,13 +49,10 @@ const rerouteOrigin = async (opts = {}, handler, next) => {
     const domainData = await getDomainData(options.tableName, host);
     logger({ domainData });
     handler.event = !!domainData
-      ? merge(
-          handler.event,
-          dotProp.set({}, ORIGIN_S3_DOTPATH, {
-            region: domainData.region,
-            domainName: domainData.origin,
-          }),
-        )
+      ? dotProp.merge(handler.event, ORIGIN_S3_DOTPATH, {
+          region: domainData.region,
+          domainName: domainData.origin,
+        })
       : handler.event;
   } catch (err) {
     logger('Throwing Error for main thread');
@@ -77,16 +74,19 @@ const getHeaderValues = (paramArr, headers) =>
     param => headers[param] && headers[param][0] && headers[param][0].value,
   );
 
-// from:  us-east-1.marketing-stack-proxy-prod-viewerRequest
-// to:    marketing-stack-proxy-prod-originmap
+// from:  us-east-1.myproject-prod-originrequest
+// to:    myproject-prod-domainmap
 const getTableFromFunctionName = (
   functionName,
   functionSuffix,
   tableSuffix,
 ) => {
-  const [rest, stackname] = functionName.match(
-    `^us-east-1\.(.+)${functionSuffix}$`,
-  );
+  logger(`
+  getTableFromFunctionName:
+  ${JSON.stringify({ functionName, functionSuffix, tableSuffix })}
+  `);
+  const [rest, stackname] =
+    functionName.match(`^us-east-1\.(.+)${functionSuffix}$`) || [];
   return `${stackname}${tableSuffix}`;
 };
 

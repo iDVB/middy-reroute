@@ -14,7 +14,6 @@ provider:
   name: aws
   region: us-east-1
   runtime: nodejs8.10
-  tracing: true
   stackTags:
     STAGE: ${self:custom.vars.STAGE}
     SERVICE: ${self:service}
@@ -32,19 +31,36 @@ functions:
       include:
         - functions/reroute/**/*
 
-
 resources:
   Description: middy-reroute example
   Conditions:
-    isProd: {"Fn::Equals" : ["${self:custom.vars.STAGE_FLAG}", "prod"]}
-    isDev: {"Fn::Equals" : ["${self:custom.vars.STAGE_FLAG}", "dev"]}
+    isProd: { "Fn::Equals": ["${self:custom.vars.STAGE_FLAG}", "prod"] }
+    isDev: { "Fn::Equals": ["${self:custom.vars.STAGE_FLAG}", "dev"] }
   Resources:
     CloudfrontOAI:
       Type: "AWS::CloudFront::CloudFrontOriginAccessIdentity"
       Properties:
         CloudFrontOriginAccessIdentityConfig:
-          Comment: Created for ${self:custom.vars.STACKNAME} 
+          Comment: Created for ${self:custom.vars.STACKNAME}
     DefaultBucket:
+      Type: "AWS::S3::Bucket"
+      Properties:
+        AccessControl: Private
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        Tags: ${self:custom.vars.TAGS}
+    BucketOne:
+      Type: "AWS::S3::Bucket"
+      Properties:
+        AccessControl: Private
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        Tags: ${self:custom.vars.TAGS}
+    BucketTwo:
       Type: "AWS::S3::Bucket"
       Properties:
         AccessControl: Private
@@ -84,8 +100,14 @@ resources:
                     - s3:GetObject
                     - s3:ListBucket
                   Resource:
-                    - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}]]}
-                    - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}, "/*"]]}
+                    - {
+                        "Fn::Join":
+                          ["", ["arn:aws:s3:::", { Ref: DefaultBucket }]],
+                      }
+                    - {
+                        "Fn::Join":
+                          ["", ["arn:aws:s3:::", { Ref: DefaultBucket }, "/*"]],
+                      }
                 - Effect: Allow
                   Action:
                     - dynamodb:GetItem
@@ -97,45 +119,87 @@ resources:
                   Resource:
                     - "Fn::Join":
                         - ""
-                        -
-                          - "arn:aws:dynamodb:"
-                          - {Ref: "AWS::Region"}
+                        - - "arn:aws:dynamodb:"
+                          - { Ref: "AWS::Region" }
                           - ":"
-                          - {Ref: "AWS::AccountId"}
+                          - { Ref: "AWS::AccountId" }
                           - ":table/"
                           - ${self:custom.vars.TABLENAMEFORMAT}
                     - "Fn::Join":
                         - ""
-                        -
-                          - "arn:aws:dynamodb:"
-                          - {Ref: "AWS::Region"}
+                        - - "arn:aws:dynamodb:"
+                          - { Ref: "AWS::Region" }
                           - ":"
-                          - {Ref: "AWS::AccountId"}
+                          - { Ref: "AWS::AccountId" }
                           - ":table/"
                           - ${self:custom.vars.TABLENAMEFORMAT}
-                          - '/index/*'
-                - Effect: "Allow"
-                  Action:
-                    - "xray:PutTraceSegments"
-                    - "xray:PutTelemetryRecords"
-                  Resource:
-                    - "*"
+                          - "/index/*"
     BucketPolicy:
       Type: "AWS::S3::BucketPolicy"
       Properties:
-        Bucket: {Ref: DefaultBucket}
+        Bucket: { Ref: DefaultBucket }
         PolicyDocument:
           Version: "2012-10-17"
           Statement:
             - Effect: Allow
               Principal:
-                CanonicalUser: {"Fn::GetAtt": [CloudfrontOAI, S3CanonicalUserId]}
+                CanonicalUser:
+                  { "Fn::GetAtt": [CloudfrontOAI, S3CanonicalUserId] }
               Action:
                 - s3:ListBucket
                 - s3:GetObject
               Resource:
-                - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}]]}
-                - {"Fn::Join": ["", ["arn:aws:s3:::", {Ref: DefaultBucket}, "/*"]]}
+                - {
+                    "Fn::Join": ["", ["arn:aws:s3:::", { Ref: DefaultBucket }]],
+                  }
+                - {
+                    "Fn::Join":
+                      ["", ["arn:aws:s3:::", { Ref: DefaultBucket }, "/*"]],
+                  }
+    BucketOnePolicy:
+      Type: "AWS::S3::BucketPolicy"
+      Properties:
+        Bucket: { Ref: BucketOne }
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                AWS:
+                  - { "Fn::GetAtt": [RerouteRole, Arn] }
+                CanonicalUser:
+                  { "Fn::GetAtt": [CloudfrontOAI, S3CanonicalUserId] }
+              Action:
+                - s3:ListBucket
+                - s3:GetObject
+              Resource:
+                - { "Fn::Join": ["", ["arn:aws:s3:::", { Ref: BucketOne }]] }
+                - {
+                    "Fn::Join":
+                      ["", ["arn:aws:s3:::", { Ref: BucketOne }, "/*"]],
+                  }
+    BucketTwoPolicy:
+      Type: "AWS::S3::BucketPolicy"
+      Properties:
+        Bucket: { Ref: BucketTwo }
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                AWS:
+                  - { "Fn::GetAtt": [RerouteRole, Arn] }
+                CanonicalUser:
+                  { "Fn::GetAtt": [CloudfrontOAI, S3CanonicalUserId] }
+              Action:
+                - s3:ListBucket
+                - s3:GetObject
+              Resource:
+                - { "Fn::Join": ["", ["arn:aws:s3:::", { Ref: BucketTwo }]] }
+                - {
+                    "Fn::Join":
+                      ["", ["arn:aws:s3:::", { Ref: BucketTwo }, "/*"]],
+                  }
     WebsiteDistribution:
       Type: "AWS::CloudFront::Distribution"
       Properties:
@@ -177,10 +241,20 @@ resources:
             #   - String
             ViewerProtocolPolicy: redirect-to-https
           Origins:
-            - DomainName: {"Fn::GetAtt": [DefaultBucket, DomainName]}
+            - DomainName: { "Fn::GetAtt": [DefaultBucket, DomainName] }
               Id: WebsiteBucketOrigin
               S3OriginConfig:
-                OriginAccessIdentity: {"Fn::Join": ["", ["origin-access-identity/cloudfront/", {Ref: CloudfrontOAI}]]}
+                OriginAccessIdentity:
+                  {
+                    "Fn::Join":
+                      [
+                        "",
+                        [
+                          "origin-access-identity/cloudfront/",
+                          { Ref: CloudfrontOAI },
+                        ],
+                      ],
+                  }
         Tags: ${self:custom.vars.TAGS}
     DnsRecords:
       Condition: isProd
@@ -192,32 +266,44 @@ resources:
           - Name: reroute.danvanbrunt.com
             Type: A
             AliasTarget:
-              DNSName:  {"Fn::GetAtt": WebsiteDistribution.DomainName}
+              DNSName: { "Fn::GetAtt": WebsiteDistribution.DomainName }
               HostedZoneId: Z2FDTNDATAQYW2
           - Name: red.danvanbrunt.com
             Type: A
             AliasTarget:
-              DNSName:  {"Fn::GetAtt": WebsiteDistribution.DomainName}
+              DNSName: { "Fn::GetAtt": WebsiteDistribution.DomainName }
               HostedZoneId: Z2FDTNDATAQYW2
           - Name: green.danvanbrunt.com
             Type: A
             AliasTarget:
-              DNSName:  {"Fn::GetAtt": WebsiteDistribution.DomainName}
+              DNSName: { "Fn::GetAtt": WebsiteDistribution.DomainName }
               HostedZoneId: Z2FDTNDATAQYW2
           - Name: blue.danvanbrunt.com
             Type: A
             AliasTarget:
-              DNSName:  {"Fn::GetAtt": WebsiteDistribution.DomainName}
+              DNSName: { "Fn::GetAtt": WebsiteDistribution.DomainName }
+              HostedZoneId: Z2FDTNDATAQYW2
+          - Name: origin-one.danvanbrunt.com
+            Type: A
+            AliasTarget:
+              DNSName: { "Fn::GetAtt": WebsiteDistribution.DomainName }
+              HostedZoneId: Z2FDTNDATAQYW2
+          - Name: origin-two.danvanbrunt.com
+            Type: A
+            AliasTarget:
+              DNSName: { "Fn::GetAtt": WebsiteDistribution.DomainName }
               HostedZoneId: Z2FDTNDATAQYW2
     SSLCert:
       Condition: isProd
       Type: "AWS::CertificateManager::Certificate"
       Properties:
         DomainName: "reroute.danvanbrunt.com"
-        SubjectAlternativeNames: 
+        SubjectAlternativeNames:
           - red.danvanbrunt.com
           - green.danvanbrunt.com
           - blue.danvanbrunt.com
+          - origin-one.danvanbrunt.com
+          - origin-two.danvanbrunt.com
     DomainMapTBL:
       Type: "AWS::DynamoDB::Table"
       Properties:
@@ -234,18 +320,26 @@ resources:
 
   Outputs:
     SiteUrl:
-      Value: {"Fn::Join": ["", ["https://", {"Fn::GetAtt": [WebsiteDistribution, DomainName]}]]}
+      Value:
+        {
+          "Fn::Join":
+            [
+              "",
+              ["https://", { "Fn::GetAtt": [WebsiteDistribution, DomainName] }],
+            ],
+        }
       Description: URL of the website
     WebsiteBucket:
-      Value: {Ref: DefaultBucket}
-      Description: ID of the S3 bucket hosting the static files
+      Value: { Ref: DefaultBucket }
+    BucketOne:
+      Value: { Ref: BucketOne }
+    BucketTwo:
+      Value: { Ref: BucketTwo }
     DistributionId:
-      Value: {Ref: WebsiteDistribution}
+      Value: { Ref: WebsiteDistribution }
       Description: ID of the Website Distribution
 
-
 plugins:
-  - serverless-plugin-tracing
   - serverless-scriptable-plugin
   - serverless-plugin-cloudfront-lambda-edge
   - serverless-print-dots
