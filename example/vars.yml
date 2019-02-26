@@ -1,7 +1,8 @@
 default: &default
   STAGE: ${opt:stage, 'dev'}
   STACKNAME: ${self:service}-${self:custom.vars.STAGE}
-  ALIASES: {Ref : "AWS::NoValue"}
+  ALIASES: { Ref: "AWS::NoValue" }
+  TABLENAMEFORMAT: "${self:custom.vars.STACKNAME}-*"
   TAGS:
     - Key: STAGE
       Value: ${self:custom.vars.STAGE}
@@ -22,6 +23,8 @@ prod:
     - red.danvanbrunt.com
     - green.danvanbrunt.com
     - blue.danvanbrunt.com
+    - origin-one.danvanbrunt.com
+    - origin-two.danvanbrunt.com
   VIEWER_CERT:
-    AcmCertificateArn: {Ref: SSLCert}
+    AcmCertificateArn: { Ref: SSLCert }
     SslSupportMethod: sni-only
