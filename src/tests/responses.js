@@ -299,7 +299,7 @@ const proxyResponse = {
   status: 200,
   statusDescription: 'OK',
 };
-const ddbResponse = (host, table, region = 'us-east-1') => ({
+const ddbResponse = (host, origin, region) => ({
   Item: {
     Host: {
       S: host,
@@ -308,7 +308,7 @@ const ddbResponse = (host, table, region = 'us-east-1') => ({
       S: region,
     },
     Origin: {
-      S: table,
+      S: origin,
     },
   },
 });
