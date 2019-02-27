@@ -68,4 +68,9 @@ describe('📦  Reroute Origin', () => {
       ),
     );
   });
+
+  // test for both
+  // marketing-stack-proxy-dev-originrequest
+  // and
+  // us-east-1.marketing-stack-proxy-dev-originrequest
 });

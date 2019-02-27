@@ -86,7 +86,7 @@ const getTableFromFunctionName = (
   ${JSON.stringify({ functionName, functionSuffix, tableSuffix })}
   `);
   const [rest, stackname] =
-    functionName.match(`^us-east-1\.(.+)${functionSuffix}$`) || [];
+    functionName.match(`^(?:us-east-1\.)?(.+)${functionSuffix}$`) || [];
   return `${stackname}${tableSuffix}`;
 };
 
@@ -111,7 +111,7 @@ const getDomainData = (table, host) =>
           data.Item.Origin.S && {
             host: data.Item.Host.S,
             origin: data.Item.Origin.S,
-            region: data.Item.Region.S,
+            region: (data.Item.Region && data.Item.Region.S) || 'us-east-1',
           }
         );
       }),
