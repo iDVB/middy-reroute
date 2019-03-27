@@ -25,8 +25,8 @@ const rerouteOrigin = async (opts = {}, handler, next) => {
     tableSuffix,
     tableName: getTableFromFunctionName(
       context.functionName,
-      functionSuffix,
-      tableSuffix,
+      opts.functionSuffix || functionSuffix,
+      opts.tableSuffix || tableSuffix,
     ),
     cacheTtl: ttl,
   };
