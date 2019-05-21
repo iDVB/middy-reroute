@@ -1,6 +1,6 @@
 {
 	"name": "middy-reroute",
-	"version": "2.0.2",
+	"version": "2.0.3",
 	"description": "A middyjs middleware implementation of Netlify's redirects functionality.",
 	"license": "MIT",
 	"repository": "iDVB/middy-reroute",
