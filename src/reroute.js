@@ -89,12 +89,14 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     const isUnFriendlyUrl =
       options.friendlyUrls && request.uri.match(options.regex.htmlEnd);
 
+    const [first, fullpath, file, filename] = isUnFriendlyUrl || [];
+    const isIndex = filename === 'index';
+
     let event;
     // Apply Friendly URLs if file doesn't exist
     // Do not apply any rules and Redirect
-    if (!keyExists && isUnFriendlyUrl) {
-      const [first, fullpath, file, filename] = isUnFriendlyUrl;
-      const end = filename === 'index' ? '' : `${filename}/`;
+    if (isUnFriendlyUrl && (!keyExists || isIndex)) {
+      const end = isIndex ? '' : `${filename}/`;
       const finalKey = `${fullpath}/${end}`;
       logger('UN-FriendlyURL [from:to]: ', request.uri, finalKey);
       event = redirect(finalKey, 301);

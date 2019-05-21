@@ -125,6 +125,13 @@ describe('📦  Reroute Middleware', () => {
       expect(event).toEqual(redirectResponse('/pretty/things/', 301));
     });
 
+    it('Index PrettyURLs should work', async () => {
+      const event = await testReroute({
+        event: eventResponse({ uri: '/pretty/index.html' }),
+      });
+      expect(event).toEqual(redirectResponse('/pretty/', 301));
+    });
+
     it('PrettyURLs should be ignored for existing files', async () => {
       const inputEvent = eventResponse({ uri: '/something/about.html' });
       const event = await testReroute({ event: inputEvent });
