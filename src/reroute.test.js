@@ -188,6 +188,32 @@ describe('📦  Reroute Middleware', () => {
       });
       expect(event).toEqual(redirectResponse('https://external.com', 301));
     });
+
+    it('Deep redirects should work', async () => {
+      const host = 'domain.com';
+      const rules = `
+      https://domain.com/*      https://www.domain.com/:splat
+      `;
+      const event = await testReroute({
+        event: eventResponse({
+          uri: '/deep/stuff',
+          headers: { host },
+        }),
+        midOptions: { rules },
+      });
+      expect(event).toEqual(
+        redirectResponse('https://www.domain.com/deep/stuff', 301),
+      );
+
+      const event2 = await testReroute({
+        event: eventResponse({
+          uri: '/',
+          headers: { host },
+        }),
+        midOptions: { rules },
+      });
+      expect(event2).toEqual(redirectResponse('https://www.domain.com/', 301));
+    });
   });
 
   describe('Rewrites', () => {
@@ -349,22 +375,31 @@ describe('📦  Reroute Middleware', () => {
     });
 
     it('Condition Country should work', async () => {
-      const rules = `/countrytest  /match   302!  Country=US,CA`;
+      const rules = `
+      /   /index.html   200!   Country=fR
+      /   /wishyouwerehere/index.html   200!
+      `;
       const matchEvent = await testReroute({
         event: eventResponse({
-          uri: '/countrytest',
-          headers: { 'cloudfront-viewer-country': 'CA' },
+          uri: '/',
+          headers: { 'cloudfront-viewer-country': 'Fr' },
         }),
         midOptions: { rules },
       });
-      expect(matchEvent).toEqual(redirectResponse('/match', 302));
+      expect(matchEvent).toEqual(
+        eventResponse({
+          uri: '/index.html',
+          headers: { 'cloudfront-viewer-country': 'Fr' },
+        }),
+      );
 
       const unMatchEvent = await testReroute({
-        event: eventResponse({ uri: '/countrytest' }),
+        event: eventResponse({ uri: '/' }),
+        headers: { 'cloudfront-viewer-country': 'CA' },
         midOptions: { rules },
       });
       expect(unMatchEvent).toEqual(
-        eventResponse({ uri: '/countrytest/index.html' }),
+        eventResponse({ uri: '/wishyouwerehere/index.html' }),
       );
     });
   });

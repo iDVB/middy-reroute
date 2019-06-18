@@ -229,9 +229,9 @@ const replacePlaceholders = (obj, pattern) =>
 const replaceSplats = (obj, pattern) =>
   _reduce(
     obj,
-    (result, value, key) => result.replace(/(:splat)/g, (_, k) => obj[key]),
+    (result, value, key) => result.replace(/(:splat)/g, obj[key]),
     pattern,
-  );
+  ).replace(/(:splat)/g, '');
 
 const replaceAll = (obj, pattern) =>
   replaceSplats(obj, replacePlaceholders(obj, pattern));
@@ -271,6 +271,11 @@ const parseRules = stringFile => {
   );
 };
 
+const countryParser = (supportedCountryArray, acceptCountryHeader) =>
+  supportedCountryArray
+    .map(c => c.toLowerCase())
+    .includes(acceptCountryHeader.toLowerCase());
+
 const findMatch = (data, path, host, protocol) => {
   let params;
   const fullUri = host && `${protocol}${host}${path}`;
@@ -288,7 +293,8 @@ const findMatch = (data, path, host, protocol) => {
 
     // If there specific country rules, do they match
     const countryPass = !!o.conditions.country
-      ? !!options.country && o.conditions.country.includes(options.country)
+      ? !!options.country &&
+        countryParser(o.conditions.country, options.country)
       : true;
 
     // Let's make sure all our conditions pass IF set

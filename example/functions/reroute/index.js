@@ -9,7 +9,7 @@ const handler = middy((event, context, cb) => {
   const request = !!event.Records ? event.Records[0].cf.request : event;
   cb(null, request);
 })
-  .use(rerouteOrigin({ tableName: 'middy-reroute-example-prod-domainmap' }))
+  .use(rerouteOrigin())
   .use(
     reroute({
       cacheTtl: 1,
