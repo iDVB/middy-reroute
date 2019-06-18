@@ -1,4 +1,4 @@
-service: middy-reroute-example
+service: middy-reroute-demo
 
 frameworkVersion: ">=1.9.0 <2.0.0"
 
@@ -9,6 +9,8 @@ custom:
       - sh ./scripts/deploy_static_files.sh ${self:custom.vars.STACKNAME} ${opt:aws-profile}
     before:remove:remove:
       - sh ./scripts/remove_static_files.sh ${self:custom.vars.STACKNAME} ${opt:aws-profile}
+  lambdaAtEdge:
+    retain: true
 
 provider:
   name: aws
@@ -19,7 +21,7 @@ provider:
     SERVICE: ${self:service}
 
 functions:
-  reroute:
+  originrequest:
     handler: functions/reroute/index.handler
     memorySize: 512
     timeout: 5
@@ -32,7 +34,7 @@ functions:
         - functions/reroute/**/*
 
 resources:
-  Description: middy-reroute example
+  Description: middy-reroute-demo
   Conditions:
     isProd: { "Fn::Equals": ["${self:custom.vars.STAGE_FLAG}", "prod"] }
     isDev: { "Fn::Equals": ["${self:custom.vars.STAGE_FLAG}", "dev"] }
