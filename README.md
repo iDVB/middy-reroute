@@ -10,9 +10,6 @@
   <a href="https://codecov.io/gh/iDVB/middy-reroute">
     <img src="https://codecov.io/gh/iDVB/middy-reroute/branch/master/graph/badge.svg" alt="codecov" style="max-width:100%;">
   </a>
-  <a href="https://snyk.io/test/github/iDVB/middy-reroute?targetFile=package.json">
-    <img src="https://snyk.io/test/github/iDVB/middy-reroute/badge.svg?targetFile=package.json" alt="Known Vulnerabilities" data-canonical-src="https://snyk.io/test/github/iDVB/middy-reroute?targetFile=package.json" style="max-width:100%;">
-  </a>
   <a href="https://standardjs.com/">
     <img src="https://img.shields.io/badge/code_style-standard-brightgreen.svg" alt="Standard Code Style"  style="max-width:100%;">
   </a>
