@@ -42,7 +42,7 @@
 /language   https://en.wikipedia.org/wiki/English_language   302   Language=en
 
 
-
+/people/* https://genome.klick.com/local-instance/staff%20images/:splat 200!
 
 
 # Existing URI

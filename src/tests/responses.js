@@ -166,7 +166,8 @@ const axiosResponse = {
   },
 };
 const proxyResponse = {
-  body: `{"login":"iDVB","id":189506,"node_id":"MDQ6VXNlcjE4OTUwNg==","avatar_url":"https://avatars1.githubusercontent.com/u/189506?v=4","gravatar_id":"","url":"https://api.github.com/users/iDVB","html_url":"https://github.com/iDVB","followers_url":"https://api.github.com/users/iDVB/followers","following_url":"https://api.github.com/users/iDVB/following{/other_user}","gists_url":"https://api.github.com/users/iDVB/gists{/gist_id}","starred_url":"https://api.github.com/users/iDVB/starred{/owner}{/repo}","subscriptions_url":"https://api.github.com/users/iDVB/subscriptions","organizations_url":"https://api.github.com/users/iDVB/orgs","repos_url":"https://api.github.com/users/iDVB/repos","events_url":"https://api.github.com/users/iDVB/events{/privacy}","received_events_url":"https://api.github.com/users/iDVB/received_events","type":"User","site_admin":false,"name":"Dan Van Brunt","company":"@KlickInc @KatalystAdvantage ","blog":"","location":"Toronto, ON","email":null,"hireable":null,"bio":"Director of Technology @KlickInc \\r\\nDev, DevOp, Automation Advocate\\r\\nInto: #docker #serverless#makingiteasy","public_repos":43,"public_gists":21,"followers":14,"following":11,"created_at":"2010-01-25T16:28:03Z","updated_at":"2019-01-17T14:08:46Z"}`,
+  body: '[object Object]',
+  bodyEncoding: 'base64',
   headers: {
     'access-control-allow-origin': [
       {

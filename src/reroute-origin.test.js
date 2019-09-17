@@ -40,7 +40,6 @@ describe('📦  Reroute Origin', () => {
           },
           TableName: tablename,
         }) => {
-          console.log('DDB.getItem.mockImplementation', { domain, tablename });
           return {
             promise: () =>
               tablename === FAKE_TABLE_NAME
@@ -56,7 +55,6 @@ describe('📦  Reroute Origin', () => {
 
       const handler = middy((event, context, cb) => cb(null, event));
       handler.use(rerouteOrigin(midOptions));
-      console.log('context', testOptions.context);
       handler(event, testOptions.context, (err, event) => {
         if (err) reject(err);
         resolve(event);

@@ -1,8 +1,7 @@
 import logger from './utils/logger';
-import { STATUS_CODES } from 'http';
-import S3 from './s3';
+import http, { STATUS_CODES } from 'http';
+import https from 'https';
 import axios from 'axios';
-import merge, { all as mergeAll } from './utils/deepmerge';
 import _find from 'lodash.find';
 import _reduce from 'lodash.reduce';
 import _omit from 'lodash.omit';
@@ -10,11 +9,37 @@ import _omitBy from 'lodash.omitby';
 import { parse } from 'url';
 import path from 'path';
 import pathMatch from 'path-match';
-import CacheService from './utils/cache-service';
 import langParser from 'accept-language-parser';
+
+import S3 from './s3';
+import merge, { all as mergeAll } from './utils/deepmerge';
+import CacheService from './utils/cache-service';
+// import rp from './utils/request-proxy';
 
 const ttl = 300; // default TTL of 30 seconds
 const cache = new CacheService(ttl);
+
+axios.interceptors.response.use(
+  function(response) {
+    // Do something with response data
+    return response;
+  },
+  function(error) {
+    // Do something with response error
+    return Promise.reject(error);
+  },
+);
+
+// axios.interceptors.response.use(
+//   response => {
+//     // Do something with response data
+//     return response;
+//   },
+//   error => {
+//     // Do something with response error
+//     return Promise.reject(error);
+//   },
+// );
 
 const route = pathMatch({
   sensitive: false,
@@ -142,7 +167,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     throw err;
   }
 
-  logger('RETURNING EVENT!!!!');
+  logger('RETURNING EVENT!!!!', handler.event);
   return;
 };
 
@@ -356,7 +381,7 @@ const getRedirectData = () => {
 };
 
 const getProxyResponse = resp => {
-  const { status, statusText, data } = resp;
+  const { status, statusText: statusDescription, data } = resp;
   logger('getProxyResponse raw headers: ', resp.headers);
   const headers = _omitBy(
     _reduce(
@@ -377,9 +402,10 @@ const getProxyResponse = resp => {
   logger('getProxyResponse parse headers: ', headers);
   const response = {
     status,
-    statusDescription: statusText,
+    statusDescription,
     headers,
-    body: JSON.stringify(data),
+    body: data.toString('base64'),
+    bodyEncoding: 'base64',
   };
   return response;
 };
@@ -457,12 +483,18 @@ const rewrite = async (to, host, event) => {
 const proxy = (url, event) => {
   logger('PROXY start: ', url);
   const { request } = event.Records[0].cf;
-  const config = { ...lambdaReponseToObj(request), validateStatus: null, url };
+  const config = {
+    ...lambdaReponseToObj(request),
+    url,
+    validateStatus: null,
+    maxContentLength: 8000000,
+    responseType: 'arraybuffer',
+  };
   logger('PROXY config: ', config);
   return axios(config)
-    .then(data => {
-      logger('PROXY data: ', _omit(data, ['request', 'config']));
-      return getProxyResponse(data);
+    .then(resp => {
+      logger('PROXY data: ', _omit(resp, ['request', 'config']));
+      return getProxyResponse(resp);
     })
     .catch(err => {
       logger('PROXY err: ', err);

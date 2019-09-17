@@ -15,7 +15,7 @@ custom:
 provider:
   name: aws
   region: us-east-1
-  runtime: nodejs8.10
+  runtime: nodejs10.x
   stackTags:
     STAGE: ${self:custom.vars.STAGE}
     SERVICE: ${self:service}
