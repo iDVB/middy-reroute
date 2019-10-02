@@ -1,7 +1,8 @@
 {
-  "dependencies": {},
+  "dependencies": {
+    "serverless": "^1.53.0"
+  },
   "devDependencies": {
-    "serverless": "^1.45.1",
     "serverless-plugin-cloudfront-lambda-edge": "^2.1.0",
     "serverless-plugin-tracing": "^2.0.0",
     "serverless-print-dots": "^1.0.4",
