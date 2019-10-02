@@ -14,7 +14,6 @@ import langParser from 'accept-language-parser';
 import S3 from './s3';
 import merge, { all as mergeAll } from './utils/deepmerge';
 import CacheService from './utils/cache-service';
-// import rp from './utils/request-proxy';
 
 const ttl = 300; // default TTL of 30 seconds
 const cache = new CacheService(ttl);
@@ -29,17 +28,6 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   },
 );
-
-// axios.interceptors.response.use(
-//   response => {
-//     // Do something with response data
-//     return response;
-//   },
-//   error => {
-//     // Do something with response error
-//     return Promise.reject(error);
-//   },
-// );
 
 const route = pathMatch({
   sensitive: false,
@@ -333,7 +321,7 @@ const findMatch = (data, path, host, protocol) => {
 // Data Fetching     //
 ///////////////////////
 const doesKeyExist = rawKey => {
-  const Key = rawKey.replace(/^\/+/, '');
+  const Key = rawKey.replace(/^\/+([^\/])/, '$1');
   return cache.get(`doesKeyExist_${Key}`, () =>
     S3.headObject({
       Bucket: options.originBucket,
