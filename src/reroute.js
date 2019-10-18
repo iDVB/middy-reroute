@@ -1,6 +1,7 @@
-import logger from './utils/logger';
+import AWS from 'aws-sdk';
 import http, { STATUS_CODES } from 'http';
 import https from 'https';
+import logger from './utils/logger';
 import axios from 'axios';
 import _find from 'lodash.find';
 import _reduce from 'lodash.reduce';
@@ -10,8 +11,6 @@ import { parse } from 'url';
 import path from 'path';
 import pathMatch from 'path-match';
 import langParser from 'accept-language-parser';
-
-import S3 from './s3';
 import merge, { all as mergeAll } from './utils/deepmerge';
 import CacheService from './utils/cache-service';
 
@@ -35,7 +34,7 @@ const route = pathMatch({
   end: true,
 });
 
-let options;
+let options, S3;
 const rerouteMiddleware = async (opts = {}, handler, next) => {
   const { request } = handler.event.Records[0].cf;
   const { origin } = request;
@@ -64,6 +63,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     custom404: `404.html`,
     cacheTtl: ttl,
     incomingProtocol: 'https://',
+    s3Options: { httpOptions: { connectTimeout: 2000 } }, // default 2 seconds
   };
   options = mergeAll([
     defaults,
@@ -76,6 +76,8 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     },
   ]);
   cache.setDefaultTtl(options.cacheTtl);
+
+  S3 = S3 || new AWS.S3(options.s3Options);
 
   logger(`
     Raw Event:
@@ -322,6 +324,7 @@ const findMatch = (data, path, host, protocol) => {
 ///////////////////////
 const doesKeyExist = rawKey => {
   const Key = rawKey.replace(/^\/+([^\/])/, '$1');
+  logger('doesKeyExist DVB: ', { Key, Bucket: options.originBucket });
   return cache.get(`doesKeyExist_${Key}`, () =>
     S3.headObject({
       Bucket: options.originBucket,

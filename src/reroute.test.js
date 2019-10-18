@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import middy from 'middy';
+import AWS from 'aws-sdk';
 import axios from 'axios';
 import { reroute } from '.';
 import _reduce from 'lodash.reduce';
@@ -25,16 +26,24 @@ const html404 = fs
   .readFileSync(path.join(__dirname, './tests/404.html'))
   .toString();
 
+const mockS3GetObject = jest.fn();
+const mockS3HeadObject = jest.fn();
+jest.mock('aws-sdk', () => {
+  return {
+    S3: jest.fn(() => ({
+      getObject: mockS3GetObject,
+      headObject: mockS3HeadObject,
+    })),
+  };
+});
 jest.mock('axios');
-jest.mock('./s3');
-import S3 from './s3';
 
 describe('📦  Reroute Middleware', () => {
   beforeEach(() => {
-    S3.headObject.mockReset();
-    S3.headObject.mockClear();
-    S3.getObject.mockReset();
-    S3.getObject.mockClear();
+    mockS3GetObject.mockReset();
+    mockS3GetObject.mockClear();
+    mockS3HeadObject.mockReset();
+    mockS3HeadObject.mockClear();
     axios.mockReset();
     axios.mockClear();
   });
@@ -58,13 +67,13 @@ describe('📦  Reroute Middleware', () => {
       midOpt,
     );
     return new Promise((resolve, reject) => {
-      S3.headObject.mockImplementation(({ Key }) => ({
+      mockS3HeadObject.mockImplementation(({ Key }) => ({
         promise: () =>
           testOptions.noFiles.includes(Key)
             ? Promise.reject({ errorType: 'NoSuchKey' })
             : Promise.resolve({ statusCode: 200 }),
       }));
-      S3.getObject.mockImplementation(({ Key }) => ({
+      mockS3GetObject.mockImplementation(({ Key }) => ({
         promise: () =>
           testOptions.noFiles.includes(Key)
             ? Promise.reject({ errorType: 'NoSuchKey' })
@@ -432,12 +441,12 @@ describe('📦  Reroute Middleware', () => {
         }),
         midOptions,
       });
-      expect(S3.getObject).toBeCalledWith(
+      expect(mockS3GetObject).toBeCalledWith(
         expect.objectContaining({
           Key: '_redirects',
         }),
       );
-      expect(S3.getObject).toHaveBeenCalledTimes(2);
+      expect(mockS3GetObject).toHaveBeenCalledTimes(2);
     });
 
     it('RulesGet cache should have TTF', async () => {
@@ -451,7 +460,7 @@ describe('📦  Reroute Middleware', () => {
         event: eventResponse({ uri: '/test2' }),
         midOptions,
       });
-      expectNCallsWithArgs(S3.getObject.mock.calls, 2, [
+      expectNCallsWithArgs(mockS3GetObject.mock.calls, 2, [
         expect.objectContaining({
           Key: '_redirects',
         }),

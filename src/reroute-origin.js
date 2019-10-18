@@ -2,7 +2,7 @@ import dotProp from 'dot-prop-immutable';
 import logger from './utils/logger';
 import CacheService from './utils/cache-service';
 import merge from './utils/deepmerge';
-import DDB from './ddb';
+import AWS from 'aws-sdk';
 
 const S3_SUFFIX = '.s3.amazonaws.com';
 const ORIGIN_S3_DOTPATH = 'Records.0.cf.request.origin.s3';
@@ -10,6 +10,7 @@ const ORIGIN_S3_DOTPATH = 'Records.0.cf.request.origin.s3';
 const ttl = 300; // default TTL of 30 seconds
 const cache = new CacheService(ttl);
 
+let DDB;
 const rerouteOrigin = async (opts = {}, handler, next) => {
   const { context } = handler;
   const { request } = handler.event.Records[0].cf;
@@ -32,6 +33,13 @@ const rerouteOrigin = async (opts = {}, handler, next) => {
   };
   const options = merge(defaults, opts);
   cache.setDefaultTtl(options.cacheTtl);
+
+  DDB =
+    DDB ||
+    new AWS.DynamoDB({
+      apiVersion: '2012-08-10',
+      region: 'us-east-1',
+    });
 
   logger(`
     Raw Event:
