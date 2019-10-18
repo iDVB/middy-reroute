@@ -1,4 +1,5 @@
 import middy from 'middy';
+import AWS from 'aws-sdk';
 import _reduce from 'lodash.reduce';
 import dotProp from 'dot-prop-immutable';
 import { rerouteOrigin } from '.';
@@ -6,16 +7,21 @@ import merge from './utils/deepmerge';
 import { eventResponse, ddbResponse } from './tests/responses';
 
 const ORIGIN_S3_DOTPATH = 'Records.0.cf.request.origin.s3';
-
-jest.mock('./ddb');
-import DDB from './ddb';
-
 const FAKE_TABLE_NAME = 'middy-reroute-example-prod-domainmap';
+
+const mockDDBGetItem = jest.fn();
+jest.mock('aws-sdk', () => {
+  return {
+    DynamoDB: jest.fn(() => ({
+      getItem: mockDDBGetItem,
+    })),
+  };
+});
 
 describe('📦  Reroute Origin', () => {
   beforeEach(() => {
-    DDB.getItem.mockReset();
-    DDB.getItem.mockClear();
+    mockDDBGetItem.mockReset();
+    mockDDBGetItem.mockClear();
   });
 
   const testReroute = ({
@@ -33,7 +39,7 @@ describe('📦  Reroute Origin', () => {
     );
     const midOptions = merge({}, midOpt);
     return new Promise((resolve, reject) => {
-      DDB.getItem.mockImplementation(
+      mockDDBGetItem.mockImplementation(
         ({
           Key: {
             Host: { S: domain },
