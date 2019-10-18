@@ -210,10 +210,13 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
     //  set to 0 to disable caching
     cacheTtl: 300, // secounds default
 
-    // 'incomingProtocol' is protocal prepended to the HOST and URI before
+    // 'incomingProtocol' is the protocol prepended to the HOST and URI before
     //  looking in the rules for a match. If you configure CloudFront to
     //  forward http to https then this should always be the default.
     incomingProtocol: 'https://',  // default
+
+    // 's3Options' is the options passed into the AWS SDK S3 client when instantiated.
+    s3Options: { httpOptions: { connectTimeout: 2000 } },
   };
 ```
 
