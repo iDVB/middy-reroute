@@ -131,6 +131,10 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
 
 # Language
 /china/*  /china/zh-cn/:splat  302  Language=zh
+
+# Language and Country
+/canada/*  /canada/en-ca/:splat  302  Language=en-ca;Country=ca
+/canada/*  /canada/en-fr/:splat  302  Language=fr-ca;Country=ca
 ```
 
 > Country codes should be [iso3166](http://dev.maxmind.com/geoip/legacy/codes/iso3166/) and [language codes](http://www.metamodpro.com/browser-language-codes) the proper format.
