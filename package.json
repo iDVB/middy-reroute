@@ -1,82 +1,86 @@
 {
-	"name": "middy-reroute",
-	"version": "2.1.4",
-	"description": "A middyjs middleware implementation of Netlify's redirects functionality.",
-	"license": "MIT",
-	"repository": "iDVB/middy-reroute",
-	"author": {
-		"name": "Dan Van Brunt",
-		"email": "me@danvanbrunt.com",
-		"url": "https://github.com/iDVB/middy-reroute"
-	},
-	"engines": {
-		"node": ">=8"
-	},
-	"scripts": {
-		"test:lint": "eslint .",
-		"test:unit": "jest --verbose --coverage",
-		"test:unit:watch": "jest --verbose --coverage --watch",
-		"test": "npm run test:lint && npm run test:unit",
-		"jest": "jest",
-		"build": "rollup -c",
-		"release:tag": "git tag $npm_package_version && git push --tags",
-		"coverage:submit": "codecov"
-	},
-	"main": "lib/reroute.js",
-	"module": "lib/reroute.esm.js",
-	"files": [
-		"lib",
-		"README.md"
-	],
-	"keywords": [
-		""
-	],
-	"dependencies": {
-		"accept-language-parser": "^1.5.0",
-		"axios": "^0.19.0",
-		"debug": "^4.1.1",
-		"deepmerge": "^4.0.0",
-		"dot-prop-immutable": "^1.5.0",
-		"lodash.find": "^4.6.0",
-		"lodash.omit": "^4.5.0",
-		"lodash.omitby": "^4.6.0",
-		"lodash.reduce": "^4.6.0",
-		"node-cache": "^4.2.1",
-		"path-match": "^1.2.4"
-	},
-	"devDependencies": {
-		"@babel/cli": "^7.6.2",
-		"@babel/core": "^7.6.2",
-		"@babel/plugin-external-helpers": "^7.2.0",
-		"@babel/plugin-proposal-object-rest-spread": "^7.6.2",
-		"@babel/preset-env": "^7.6.2",
-		"aws-sdk": "^2.540.0",
-		"babel-eslint": "^10.0.3",
-		"babel-jest": "^24.9.0",
-		"codecov": "^3.6.1",
-		"eslint": "^5.16.0",
-		"eslint-config-prettier": "^5.1.0",
-		"eslint-plugin-import": "^2.18.2",
-		"eslint-plugin-prettier": "^3.1.1",
-		"husky": "^3.0.8",
-		"jest": "^24.9.0",
-		"middy": "^0.29.0",
-		"prettier": "^1.18.2",
-		"prettier-eslint": "^9.0.0",
-		"rollup": "^1.22.0",
-		"rollup-plugin-babel": "^4.3.3",
-		"serverless": "^1.53.0"
-	},
-	"jest": {
-		"collectCoverageFrom": [
-			"src/**/*.js",
-			"!src/tests/**/*.js"
-		],
-		"testEnvironment": "node"
-	},
-	"husky": {
-		"hooks": {
-			"pre-commit": "npm run build"
-		}
-	}
+  "name": "middy-reroute",
+  "version": "2.1.4",
+  "description": "A middyjs middleware implementation of Netlify's redirects functionality.",
+  "license": "MIT",
+  "repository": "iDVB/middy-reroute",
+  "author": {
+    "name": "Dan Van Brunt",
+    "email": "me@danvanbrunt.com",
+    "url": "https://github.com/iDVB/middy-reroute"
+  },
+  "engines": {
+    "node": ">=8"
+  },
+  "scripts": {
+    "test:lint": "eslint .",
+    "test:unit": "jest --verbose --coverage",
+    "test:unit:watch": "jest --verbose --coverage --watch",
+    "test": "npm run test:lint && npm run test:unit",
+    "jest": "jest",
+    "build": "rollup -c",
+    "release:tag": "git tag $npm_package_version && git push --tags",
+    "coverage:submit": "codecov",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
+  },
+  "main": "lib/reroute.js",
+  "module": "lib/reroute.esm.js",
+  "files": [
+    "lib",
+    "README.md"
+  ],
+  "keywords": [
+    ""
+  ],
+  "dependencies": {
+    "accept-language-parser": "^1.5.0",
+    "axios": "^0.19.0",
+    "debug": "^4.1.1",
+    "deepmerge": "^4.0.0",
+    "dot-prop-immutable": "^1.5.0",
+    "lodash.find": "^4.6.0",
+    "lodash.omit": "^4.5.0",
+    "lodash.omitby": "^4.6.0",
+    "lodash.reduce": "^4.6.0",
+    "node-cache": "^4.2.1",
+    "path-match": "^1.2.4",
+    "snyk": "^1.316.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.6.2",
+    "@babel/core": "^7.6.2",
+    "@babel/plugin-external-helpers": "^7.2.0",
+    "@babel/plugin-proposal-object-rest-spread": "^7.6.2",
+    "@babel/preset-env": "^7.6.2",
+    "aws-sdk": "^2.540.0",
+    "babel-eslint": "^10.0.3",
+    "babel-jest": "^24.9.0",
+    "codecov": "^3.6.1",
+    "eslint": "^5.16.0",
+    "eslint-config-prettier": "^5.1.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-prettier": "^3.1.1",
+    "husky": "^3.0.8",
+    "jest": "^24.9.0",
+    "middy": "^0.29.0",
+    "prettier": "^1.18.2",
+    "prettier-eslint": "^9.0.0",
+    "rollup": "^1.22.0",
+    "rollup-plugin-babel": "^4.3.3",
+    "serverless": "^1.53.0"
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/tests/**/*.js"
+    ],
+    "testEnvironment": "node"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run build"
+    }
+  },
+  "snyk": true
 }
