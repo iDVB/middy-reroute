@@ -3,7 +3,7 @@ import babel from 'rollup-plugin-babel';
 import pkg from './package.json';
 
 // list of plugins used during building process
-const plugins = targets => [
+const plugins = (targets) => [
   // use Babel to transpile to ES5
   babel({
     // ignore node_modules/ in transpilation process

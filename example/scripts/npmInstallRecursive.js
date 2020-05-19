@@ -7,7 +7,7 @@ var os = require('os');
 // get library path
 var lib = resolve(__dirname, '../functions/');
 
-fs.readdirSync(lib).forEach(function(mod) {
+fs.readdirSync(lib).forEach(function (mod) {
   var modPath = join(lib, mod);
   // ensure path has package.json
   if (!fs.existsSync(join(modPath, 'package.json'))) return;

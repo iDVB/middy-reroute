@@ -70,7 +70,7 @@ const rerouteOrigin = async (opts = {}, handler, next) => {
   return;
 };
 
-export default opts => ({
+export default (opts) => ({
   before: rerouteOrigin.bind(null, opts),
 });
 
@@ -79,7 +79,7 @@ export default opts => ({
 ///////////////////////
 const getHeaderValues = (paramArr, headers) =>
   paramArr.map(
-    param => headers[param] && headers[param][0] && headers[param][0].value,
+    (param) => headers[param] && headers[param][0] && headers[param][0].value,
   );
 
 // from:  us-east-1.myproject-prod-originrequest
@@ -109,7 +109,7 @@ const getDomainData = (table, host) =>
       TableName: table,
     })
       .promise()
-      .then(data => {
+      .then((data) => {
         logger(`
       getDomainData: 
       ${JSON.stringify(data)}`);

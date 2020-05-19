@@ -15,7 +15,7 @@ custom:
 provider:
   name: aws
   region: us-east-1
-  runtime: nodejs10.x
+  runtime: nodejs12.x
   stackTags:
     STAGE: ${self:custom.vars.STAGE}
     SERVICE: ${self:service}
@@ -344,7 +344,6 @@ resources:
 plugins:
   - serverless-scriptable-plugin
   - serverless-plugin-cloudfront-lambda-edge
-  - serverless-print-dots
 
 package:
   individually: true

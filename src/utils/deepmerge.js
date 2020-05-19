@@ -6,7 +6,7 @@ const deepmerge = (x, y, { arrayMerge, ...rest } = {}) =>
 const all = (arr, { arrayMerge, ...rest } = {}) =>
   merge.all(arr, { ...rest, arrayMerge: combineMerge });
 
-const emptyTarget = value => (Array.isArray(value) ? [] : {});
+const emptyTarget = (value) => (Array.isArray(value) ? [] : {});
 const clone = (value, options) => merge(emptyTarget(value), value, options);
 const combineMerge = (target, source, options) => {
   const destination = target.slice();

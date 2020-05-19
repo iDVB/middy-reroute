@@ -18,7 +18,7 @@ class Cache {
         return Promise.resolve(value);
       }
     }
-    return storeFunction().then(result => {
+    return storeFunction().then((result) => {
       this.ttl > 0 && this.cache.set(key, result, this.ttl);
       return result;
     });

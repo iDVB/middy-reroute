@@ -87,7 +87,7 @@ const redirectResponse = (uri, status) => ({
     location: [{ key: 'Location', value: uri }],
   },
 });
-const customResponse = body => ({
+const customResponse = (body) => ({
   status: '404',
   statusDescription: STATUS_CODES['404'],
   headers: {
@@ -320,11 +320,11 @@ const ddbResponse = (host, origin, region) => ({
 const headerMap = {
   'cloudfront-viewer-country': 'CloudFront-Viewer-Country',
 };
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const capitalizeParam = param =>
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const capitalizeParam = (param) =>
   param
     .split('-')
-    .map(i => i.charAt(0).toUpperCase() + i.slice(1))
+    .map((i) => i.charAt(0).toUpperCase() + i.slice(1))
     .join('-');
 const toKeyValue = (key, value) =>
   !!value
@@ -333,7 +333,7 @@ const toKeyValue = (key, value) =>
       }
     : {};
 
-const toKeyValueHeaders = headers =>
+const toKeyValueHeaders = (headers) =>
   _reduce(
     headers,
     (results, value, key) => ({
