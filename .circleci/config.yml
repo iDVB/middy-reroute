@@ -1,8 +1,8 @@
 version: 2
 jobs:
-  build_node6:
+  build_node:
     docker:
-      - image: circleci/node:6.10
+      - image: circleci/node:12.9.1
 
     working_directory: ~/middy-reroute
 
@@ -11,46 +11,9 @@ jobs:
 
       - restore_cache:
           keys:
-          - v1-dependencies-v6-{{ checksum "package.json" }}
-          - v1-dependencies-v6-
-          - v1-dependencies-
-
-      - run:
-          name: install dependencies
-          command: npm install
-
-      - save_cache:
-          paths:
-            - node_modules
-          key: v1-dependencies-v6-{{ checksum "package.json" }}
-
-      - run:
-          name: unit tests
-          command: npm test
-
-      - run:
-          name: coverage reporting
-          command: npm run coverage:submit
-
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - middy-reroute/*
-
-  build_node8:
-    docker:
-      - image: circleci/node:8.10
-
-    working_directory: ~/middy-reroute
-
-    steps:
-      - checkout
-
-      - restore_cache:
-          keys:
-          - v1-dependencies-v8-{{ checksum "package.json" }}
-          - v1-dependencies-v8-
-          - v1-dependencies-
+            - v1-dependencies-v8-{{ checksum "package.json" }}
+            - v1-dependencies-v8-
+            - v1-dependencies-
 
       - run:
           name: install dependencies
@@ -67,43 +30,39 @@ jobs:
 
   deploy:
     docker:
-      - image: circleci/node:6.10
+      - image: circleci/node:12.9.1
 
     steps:
-        - attach_workspace:
-            at: ~/
+      - attach_workspace:
+          at: ~/
 
-        - run:
-            name: configure NPM registry
-            command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - run:
+          name: configure NPM registry
+          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
 
-        - run:
-            name: configure GitHub SSH
-            command: mkdir -p ~/.ssh && ssh-keyscan -H github.com > ~/.ssh/known_hosts
+      - run:
+          name: configure GitHub SSH
+          command: mkdir -p ~/.ssh && ssh-keyscan -H github.com > ~/.ssh/known_hosts
 
-        - add_ssh_keys:
-            fingerprints:
-              - "0b:c1:d0:5b:58:ee:b9:b1:e1:c3:be:56:56:6d:35:e4"
-              
-        - run:
-            working_directory: ~/middy-reroute
-            name: publish
-            command: |
-              npm publish && npm run release:tag;
+      - add_ssh_keys:
+          fingerprints:
+            - "0b:c1:d0:5b:58:ee:b9:b1:e1:c3:be:56:56:6d:35:e4"
 
+      - run:
+          working_directory: ~/middy-reroute
+          name: publish
+          command: |
+            npm publish && npm run release:tag;
 
 workflows:
   version: 2
 
   build_test_deploy:
     jobs:
-        - build_node6
-        - build_node8
-        # we only deploy if build_node6 && build_node8 both succeed and if on master.
-        - deploy:
-            requires:
-                - build_node6
-                - build_node8
-            filters:
-                branches:
-                    only: master
+      - build_node
+      - deploy:
+          requires:
+            - build_node
+          filters:
+            branches:
+              only: master
