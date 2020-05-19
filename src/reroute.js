@@ -17,11 +17,11 @@ const ttl = 300; // default TTL of 30 seconds
 const cache = new CacheService(ttl);
 
 axios.interceptors.response.use(
-  function(response) {
+  function (response) {
     // Do something with response data
     return response;
   },
-  function(error) {
+  function (error) {
     // Do something with response error
     return Promise.reject(error);
   },
@@ -165,28 +165,28 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
 ///////////////////////
 const getHeaderValues = (paramArr, headers) =>
   paramArr.map(
-    param => headers[param] && headers[param][0] && headers[param][0].value,
+    (param) => headers[param] && headers[param][0] && headers[param][0].value,
   );
-const isRedirectURI = status => options.redirectStatuses.includes(status);
+const isRedirectURI = (status) => options.redirectStatuses.includes(status);
 
-const isAbsoluteURI = to => {
+const isAbsoluteURI = (to) => {
   const test = options.regex.absoluteUri.test(to);
   logger('isAbsoluteURI: ', test, to);
   return test;
 };
 
-const capitalizeParam = param =>
+const capitalizeParam = (param) =>
   param
     .split('-')
-    .map(i => i.charAt(0).toUpperCase() + i.slice(1))
+    .map((i) => i.charAt(0).toUpperCase() + i.slice(1))
     .join('-');
 
-const forceDefaultDoc = uri =>
+const forceDefaultDoc = (uri) =>
   path.extname(uri) === '' && !!options.defaultDoc
     ? path.join(uri, options.defaultDoc)
     : uri;
 
-const lambdaReponseToObj = req => {
+const lambdaReponseToObj = (req) => {
   const { method, body } = req;
   return {
     method,
@@ -230,9 +230,9 @@ const blacklistedHeaders = {
   ],
   startsWith: ['X-Amzn-', 'X-Amz-Cf-', 'X-Edge-'],
 };
-const isBlacklistedProperty = name =>
+const isBlacklistedProperty = (name) =>
   blacklistedHeaders.exact.includes(name) ||
-  !!blacklistedHeaders.startsWith.find(i => name.startsWith(i));
+  !!blacklistedHeaders.startsWith.find((i) => name.startsWith(i));
 
 ///////////////////////
 // Rules Parsing     //
@@ -250,7 +250,7 @@ const replaceSplats = (obj, pattern) =>
 const replaceAll = (obj, pattern) =>
   replaceSplats(obj, replacePlaceholders(obj, pattern));
 
-const parseConditions = conditions =>
+const parseConditions = (conditions) =>
   !!conditions
     ? conditions.split(';').reduce((results, next) => {
         const [key, value] = next.split('=');
@@ -258,7 +258,7 @@ const parseConditions = conditions =>
       }, {})
     : {};
 
-const parseRules = stringFile => {
+const parseRules = (stringFile) => {
   logger('Parsing String: ', stringFile);
   return (
     stringFile
@@ -267,8 +267,8 @@ const parseRules = stringFile => {
       // split all lines
       .split(/[\r\n]/gm)
       // strip out the last line break
-      .filter(l => l !== '')
-      .map(l => {
+      .filter((l) => l !== '')
+      .map((l) => {
         // regex
         const [first, from, to, status, force, conditions] = l.match(
           options.regex.ruleline,
@@ -287,13 +287,13 @@ const parseRules = stringFile => {
 
 const countryParser = (supportedCountryArray, acceptCountryHeader) =>
   supportedCountryArray
-    .map(c => c.toLowerCase())
+    .map((c) => c.toLowerCase())
     .includes(acceptCountryHeader.toLowerCase());
 
 const findMatch = (data, path, host, protocol) => {
   let params;
   const fullUri = host && `${protocol}${host}${path}`;
-  const match = _find(data, o => {
+  const match = _find(data, (o) => {
     const from = route(o.from);
     params = isAbsoluteURI(o.from) ? from(fullUri) : from(parse(path).pathname);
 
@@ -321,7 +321,7 @@ const findMatch = (data, path, host, protocol) => {
 ///////////////////////
 // Data Fetching     //
 ///////////////////////
-const doesKeyExist = rawKey => {
+const doesKeyExist = (rawKey) => {
   const Key = rawKey.replace(/^\/+([^\/])/, '$1');
   logger('doesKeyExist: ', { Key, Bucket: options.originBucket });
   const cacheKey = `doesKeyExist_${options.rulesBucket}_${Key}`;
@@ -331,11 +331,11 @@ const doesKeyExist = rawKey => {
       Key,
     })
       .promise()
-      .then(data => {
+      .then((data) => {
         logger('doesKeyExist FOUND: ', Key);
         return true;
       })
-      .catch(err => {
+      .catch((err) => {
         if (err.errorType === 'NoSuchKey' || err.code === 'NotFound') {
           logger('doesKeyExist NOT Found: ', Key);
           return false;
@@ -363,15 +363,15 @@ const getRedirectData = () => {
           Key,
         })
           .promise()
-          .then(data => parseRules(data.Body.toString()))
-          .catch(err => {
+          .then((data) => parseRules(data.Body.toString()))
+          .catch((err) => {
             logger('No _redirects file', err);
             return false;
           });
   });
 };
 
-const getProxyResponse = resp => {
+const getProxyResponse = (resp) => {
   const { status, statusText: statusDescription, data } = resp;
   logger('getProxyResponse raw headers: ', resp.headers);
   const headers = _omitBy(
@@ -426,7 +426,7 @@ const get404Response = () => {
           body: Body.toString(),
         };
       })
-      .catch(err => {
+      .catch((err) => {
         if (err.errorType === 'NoSuchKey') {
           logger('Custom 404 NOT Found');
         }
@@ -484,16 +484,16 @@ const proxy = (url, event) => {
   };
   logger('PROXY config: ', config);
   return axios(config)
-    .then(resp => {
+    .then((resp) => {
       logger('PROXY data: ', _omit(resp, ['request', 'config']));
       return getProxyResponse(resp);
     })
-    .catch(err => {
+    .catch((err) => {
       logger('PROXY err: ', err);
       throw err;
     });
 };
 
-export default opts => ({
+export default (opts) => ({
   before: rerouteMiddleware.bind(null, opts),
 });
