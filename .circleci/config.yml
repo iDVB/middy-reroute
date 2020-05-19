@@ -16,12 +16,26 @@ jobs:
             - v1-dependencies-
 
       - run:
-          name: configure NPM registry
-          command: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          name: install dependencies
+          command: npm install
+
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-v8-{{ checksum "package.json" }}
 
       - run:
           name: unit tests
           command: npm test
+
+      - run:
+          name: coverage reporting
+          command: npm run coverage:submit
+
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - middy-reroute/*
 
   deploy:
     docker:
