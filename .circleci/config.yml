@@ -28,6 +28,15 @@ jobs:
           name: unit tests
           command: npm test
 
+      - run:
+          name: coverage reporting
+          command: npm run coverage:submit
+
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - middy-reroute/*
+
   deploy:
     docker:
       - image: circleci/node:12.9.1
