@@ -1,6 +1,5 @@
 import AWS from 'aws-sdk';
-import http, { STATUS_CODES } from 'http';
-import https from 'https';
+import { STATUS_CODES } from 'http';
 import logger from './utils/logger';
 import axios from 'axios';
 import _find from 'lodash.find';
@@ -324,8 +323,9 @@ const findMatch = (data, path, host, protocol) => {
 ///////////////////////
 const doesKeyExist = rawKey => {
   const Key = rawKey.replace(/^\/+([^\/])/, '$1');
-  logger('doesKeyExist DVB: ', { Key, Bucket: options.originBucket });
-  return cache.get(`doesKeyExist_${Key}`, () =>
+  logger('doesKeyExist: ', { Key, Bucket: options.originBucket });
+  const cacheKey = `doesKeyExist_${options.rulesBucket}_${Key}`;
+  return cache.get(cacheKey, () =>
     S3.headObject({
       Bucket: options.originBucket,
       Key,
@@ -350,8 +350,8 @@ const getRedirectData = () => {
   const Key = !options.multiFile
     ? options.file
     : `${options.file}_${options.host}`;
-  const cacheKey = `${options.rulesBucket}_${Key}`;
-  return cache.get(`getRedirectData_${cacheKey}`, () => {
+  const cacheKey = `getRedirectData_${options.rulesBucket}_${Key}`;
+  return cache.get(cacheKey, () => {
     logger(`
       Getting Rules from: ${options.rules ? 'Options' : 'S3'}
       Bucket: ${options.rulesBucket}
@@ -403,7 +403,8 @@ const getProxyResponse = resp => {
 
 const get404Response = () => {
   const Key = options.custom404;
-  return cache.get(`get404Response_${Key}`, () =>
+  const cacheKey = `get404Response_${options.rulesBucket}_${Key}`;
+  return cache.get(cacheKey, () =>
     S3.getObject({
       Bucket: options.originBucket,
       Key,

@@ -344,7 +344,6 @@ resources:
 plugins:
   - serverless-scriptable-plugin
   - serverless-plugin-cloudfront-lambda-edge
-  - serverless-print-dots
 
 package:
   individually: true
