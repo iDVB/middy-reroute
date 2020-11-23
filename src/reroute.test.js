@@ -411,6 +411,37 @@ describe('📦  Reroute Middleware', () => {
         eventResponse({ uri: '/wishyouwerehere/index.html' }),
       );
     });
+
+    it('Condition UserAgent should work', async () => {
+      const rules = `
+      /*      /upgrade-browser.html   200    UserAgent=IE:<=12
+      `;
+      const matchEvent = await testReroute({
+        event: eventResponse({
+          uri: '/match',
+          headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko' },
+        }),
+        midOptions: { rules },
+      });
+      expect(matchEvent).toEqual(
+        eventResponse({
+          uri: '/upgrade-browser.html',
+          headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko' },
+        }),
+      );
+
+      const unMatchEvent = await testReroute({
+        event: eventResponse({ 
+          uri: '/unmatch', 
+          headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.66 Safari/537.36' },
+        }),
+        midOptions: { rules },
+      });
+      expect(unMatchEvent).toEqual(eventResponse({ 
+        uri: '/unmatch/index.html', 
+        headers: { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.66 Safari/537.36' },
+      }));
+    });
   });
 
   describe('Caching', () => {

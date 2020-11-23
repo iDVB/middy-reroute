@@ -316,9 +316,7 @@ resources:
         KeySchema:
           - AttributeName: Host
             KeyType: HASH
-        ProvisionedThroughput:
-          ReadCapacityUnits: 300
-          WriteCapacityUnits: 5
+        BillingMode: PAY_PER_REQUEST
 
   Outputs:
     SiteUrl:
