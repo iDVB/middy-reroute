@@ -10,6 +10,8 @@ import { parse } from 'url';
 import path from 'path';
 import pathMatch from 'path-match';
 import langParser from 'accept-language-parser';
+import UAParser from 'ua-parser-js';
+import semver from 'semver';
 import merge, { all as mergeAll } from './utils/deepmerge';
 import CacheService from './utils/cache-service';
 
@@ -37,8 +39,8 @@ let options, S3;
 const rerouteMiddleware = async (opts = {}, handler, next) => {
   const { request } = handler.event.Records[0].cf;
   const { origin } = request;
-  const [host, country, language] = getHeaderValues(
-    ['host', 'cloudfront-viewer-country', 'accept-language'],
+  const [host, country, language, userAgent] = getHeaderValues(
+    ['host', 'cloudfront-viewer-country', 'accept-language', 'user-agent'],
     request.headers,
   );
   const s3DomainName = origin && origin.s3 && origin.s3.domainName;
@@ -72,6 +74,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
       host,
       country,
       language,
+      userAgent,
     },
   ]);
   cache.setDefaultTtl(options.cacheTtl);
@@ -90,6 +93,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     Origin: ${s3DomainName}
     Country: ${options.country}
     Language: ${options.language}
+    UserAgent: ${options.userAgent}
     `);
 
   // Origin must be S3
@@ -253,7 +257,7 @@ const replaceAll = (obj, pattern) =>
 const parseConditions = (conditions) =>
   !!conditions
     ? conditions.split(';').reduce((results, next) => {
-        const [key, value] = next.split('=');
+        const [unused, key, value] = next.split(/([^=]*)=(.*)/);
         return { ...results, [key.toLowerCase()]: value.split(',') };
       }, {})
     : {};
@@ -290,6 +294,19 @@ const countryParser = (supportedCountryArray, acceptCountryHeader) =>
     .map((c) => c.toLowerCase())
     .includes(acceptCountryHeader.toLowerCase());
 
+const userAgentParser = (testuserAgentArray, userAgentHeader) => {
+  const { name: browser, version } = UAParser(userAgentHeader).browser;
+  const match = _find(testuserAgentArray, (uaRule) => {
+    const [browserRule, versionRule] = uaRule.split(':');
+    const cleanVersion = semver.valid(semver.coerce(version));
+    const isVersion = semver.satisfies(cleanVersion, versionRule);
+    const isBrowser = browser === browserRule;
+    const isMatch = isBrowser && isVersion;
+    return isMatch;
+  });
+  return !!match;
+};
+
 const findMatch = (data, path, host, protocol) => {
   let params;
   const fullUri = host && `${protocol}${host}${path}`;
@@ -311,8 +328,14 @@ const findMatch = (data, path, host, protocol) => {
         countryParser(o.conditions.country, options.country)
       : true;
 
+    // If there specific user-agent rules, do they match
+    const agentPass = !!o.conditions.useragent
+      ? !!options.userAgent &&
+        userAgentParser(o.conditions.useragent, options.userAgent)
+      : true;
+
     // Let's make sure all our conditions pass IF set
-    const passesConditions = languagePass && countryPass;
+    const passesConditions = languagePass && countryPass && agentPass;
     return params !== false && passesConditions;
   });
   return match && { ...match, parsedTo: replaceAll(params, match.to) };

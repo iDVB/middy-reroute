@@ -360,8 +360,8 @@ describe('📦  Reroute Middleware', () => {
     });
   });
 
-  describe('Special Rules', () => {
-    it('Condition Language match should work', async () => {
+  describe('Condition: Language', () => {
+    it('Basic Language match should work', async () => {
       const rules = `/langtest  /match   302!  Language=en,fr`;
       const matchEvent = await testReroute({
         event: eventResponse({
@@ -382,8 +382,10 @@ describe('📦  Reroute Middleware', () => {
         eventResponse({ uri: '/langtest/index.html' }),
       );
     });
+  });
 
-    it('Condition Country should work', async () => {
+  describe('Condition: Country', () => {
+    it('Basic Country should work', async () => {
       const rules = `
       /   /index.html   200!   Country=fR
       /   /wishyouwerehere/index.html   200!
@@ -409,6 +411,150 @@ describe('📦  Reroute Middleware', () => {
       });
       expect(unMatchEvent).toEqual(
         eventResponse({ uri: '/wishyouwerehere/index.html' }),
+      );
+    });
+  });
+
+  describe('Condition: UserAgent', () => {
+    it('Basic UserAgent should work', async () => {
+      const rules = `
+      /*      /upgrade-browser   200    UserAgent=IE:<=11
+      `;
+      const matchEvent = await testReroute({
+        event: eventResponse({
+          uri: '/match',
+          headers: {
+            'user-agent':
+              'Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko',
+          },
+        }),
+        midOptions: { rules },
+      });
+      expect(matchEvent).toEqual(
+        eventResponse({
+          uri: '/upgrade-browser/index.html',
+          headers: {
+            'user-agent':
+              'Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko',
+          },
+        }),
+      );
+
+      const unMatchEvent = await testReroute({
+        event: eventResponse({
+          uri: '/unmatch',
+          headers: {
+            'user-agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.66 Safari/537.36',
+          },
+        }),
+        midOptions: { rules },
+      });
+      expect(unMatchEvent).toEqual(
+        eventResponse({
+          uri: '/unmatch/index.html',
+          headers: {
+            'user-agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.66 Safari/537.36',
+          },
+        }),
+      );
+    });
+
+    it('Multiple UserAgent Rules should work', async () => {
+      const rules = `
+      /*      /upgrade-browser   200    UserAgent=IE:<=11,Chrome:>89
+      `;
+
+      // Match on IE
+      const ieAgent =
+        'Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko';
+      const matchIE = await testReroute({
+        event: eventResponse({
+          uri: '/match',
+          headers: { 'user-agent': ieAgent },
+        }),
+        midOptions: { rules },
+      });
+      expect(matchIE).toEqual(
+        eventResponse({
+          uri: '/upgrade-browser/index.html',
+          headers: { 'user-agent': ieAgent },
+        }),
+      );
+
+      // Match on Chrome
+      const chromeAgent1 =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4280.66 Safari/537.36';
+      const matchChrome = await testReroute({
+        event: eventResponse({
+          uri: '/match',
+          headers: { 'user-agent': chromeAgent1 },
+        }),
+        midOptions: { rules },
+      });
+      expect(matchChrome).toEqual(
+        eventResponse({
+          uri: '/upgrade-browser/index.html',
+          headers: { 'user-agent': chromeAgent1 },
+        }),
+      );
+
+      // unMatch on Chrome
+      const chromeAgent2 =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4280.66 Safari/537.36';
+      const unMatchChrome = await testReroute({
+        event: eventResponse({
+          uri: '/unmatch',
+          headers: { 'user-agent': chromeAgent2 },
+        }),
+        midOptions: { rules },
+      });
+      expect(unMatchChrome).toEqual(
+        eventResponse({
+          uri: '/unmatch/index.html',
+          headers: { 'user-agent': chromeAgent2 },
+        }),
+      );
+    });
+
+    it('Catch-All UserAgent Rules should work', async () => {
+      const rules = `
+      /*      /upgrade-browser   200!    UserAgent=IE:*
+      `;
+
+      // Match on IE
+      const ieAgent =
+        'Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko';
+      const matchIE = await testReroute({
+        event: eventResponse({
+          uri: '/match',
+          headers: { 'user-agent': ieAgent },
+        }),
+        midOptions: { rules },
+      });
+      expect(matchIE).toEqual(
+        eventResponse({
+          uri: '/upgrade-browser/index.html',
+          headers: { 'user-agent': ieAgent },
+        }),
+      );
+
+      // unMatch on Chrome
+      const chromeAgent =
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4280.66 Safari/537.36';
+      const unMatchChrome = await testReroute({
+        event: eventResponse({
+          uri: '/unmatch',
+          headers: { 'user-agent': chromeAgent },
+        }),
+        midOptions: { rules },
+      });
+      expect(unMatchChrome).toEqual(
+        eventResponse({
+          uri: '/unmatch/index.html',
+          headers: { 'user-agent': chromeAgent },
+        }),
       );
     });
   });

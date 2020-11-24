@@ -35,4 +35,5 @@
 
 # Conditions
 /langtest   /langworked   301   Country=CA
+/useragenttest /useragentworked   301    UserAgent=IE:<=11
 
