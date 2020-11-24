@@ -131,6 +131,10 @@ See [Netlify's docs](https://www.netlify.com/docs/redirects/) for more detailed 
 
 # Language
 /china/*  /china/zh-cn/:splat  302  Language=zh
+
+# UserAgent
+/*  /upgrade-browser  200!  UserAgent=IE:<=11
+/*  /great-choice     200!  UserAgent=Chrome:*,Firefox:*
 ```
 
 > Country codes should be [iso3166](http://dev.maxmind.com/geoip/legacy/codes/iso3166/) and [language codes](http://www.metamodpro.com/browser-language-codes) the proper format.

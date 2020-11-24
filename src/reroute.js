@@ -74,7 +74,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
       host,
       country,
       language,
-      userAgent
+      userAgent,
     },
   ]);
   cache.setDefaultTtl(options.cacheTtl);
@@ -302,13 +302,8 @@ const userAgentParser = (testuserAgentArray, userAgentHeader) => {
     const isVersion = semver.satisfies(cleanVersion, versionRule);
     const isBrowser = browser === browserRule;
     const isMatch = isBrowser && isVersion;
-    console.log({browser, version, cleanVersion, browserRule, versionRule, isMatch});
-
     return isMatch;
-  })
-
-  console.log('UA match', !!match)
-
+  });
   return !!match;
 };
 
@@ -335,12 +330,9 @@ const findMatch = (data, path, host, protocol) => {
 
     // If there specific user-agent rules, do they match
     const agentPass = !!o.conditions.useragent
-    ? !!options.userAgent &&
-    userAgentParser(o.conditions.useragent, options.userAgent)
-    : false;
-
-
-    console.log({agentPass, countryPass});
+      ? !!options.userAgent &&
+        userAgentParser(o.conditions.useragent, options.userAgent)
+      : true;
 
     // Let's make sure all our conditions pass IF set
     const passesConditions = languagePass && countryPass && agentPass;
