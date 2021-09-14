@@ -134,11 +134,27 @@ describe('📦  Reroute Middleware', () => {
       expect(event).toEqual(redirectResponse('/pretty/things/', 301));
     });
 
+    it('PrettyURLs should work with Query Strings', async () => {
+      const event = await testReroute({
+        event: eventResponse({ uri: '/pretty/things.html?query1=value1' }),
+      });
+      expect(event).toEqual(
+        redirectResponse('/pretty/things/?query1=value1', 301),
+      );
+    });
+
     it('Index PrettyURLs should work', async () => {
       const event = await testReroute({
         event: eventResponse({ uri: '/pretty/index.html' }),
       });
       expect(event).toEqual(redirectResponse('/pretty/', 301));
+    });
+
+    it('Index PrettyURLs with Query Strings should work', async () => {
+      const event = await testReroute({
+        event: eventResponse({ uri: '/pretty/index.html?query1=value1' }),
+      });
+      expect(event).toEqual(redirectResponse('/pretty/?query1=value1', 301));
     });
 
     it('PrettyURLs should be ignored for existing files', async () => {
@@ -223,6 +239,15 @@ describe('📦  Reroute Middleware', () => {
       });
       expect(event2).toEqual(redirectResponse('https://www.domain.com/', 301));
     });
+
+    it('External with query strings should work', async () => {
+      const event = await testReroute({
+        event: eventResponse({ uri: '/internal9?query1=value1' }),
+      });
+      expect(event).toEqual(
+        redirectResponse('https://external.com?query1=value1', 301),
+      );
+    });
   });
 
   describe('Rewrites', () => {
@@ -249,6 +274,15 @@ describe('📦  Reroute Middleware', () => {
       });
       expect(event).toEqual(eventResponse({ uri: '/nofilehere/index.html' }));
     });
+
+    it('Query should be passed properly with rewrite', async () => {
+      const event = await testReroute({
+        event: eventResponse({ uri: '/blog?query1=val1&query2=val2' }),
+      });
+      expect(event).toEqual(
+        eventResponse({ uri: '/blog/index.html?query1=val1&query2=val2' }),
+      );
+    });
   });
 
   describe('Proxying', () => {
@@ -256,6 +290,14 @@ describe('📦  Reroute Middleware', () => {
       axios.mockImplementation(() => Promise.resolve(axiosResponse));
       const event = await testReroute({
         event: eventResponse({ uri: '/api/users/iDVB' }),
+      });
+      expect(event).toEqual(proxyResponse);
+    });
+
+    it('Should work with query', async () => {
+      axios.mockImplementation(() => Promise.resolve(axiosResponse));
+      const event = await testReroute({
+        event: eventResponse({ uri: '/api/users/iDVB?query1=value1' }),
       });
       expect(event).toEqual(proxyResponse);
     });
