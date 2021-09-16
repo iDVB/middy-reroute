@@ -136,10 +136,13 @@ describe('📦  Reroute Middleware', () => {
 
     it('PrettyURLs should work with Query Strings', async () => {
       const event = await testReroute({
-        event: eventResponse({ uri: '/pretty/things.html?query1=value1' }),
+        event: eventResponse({
+          uri: '/pretty/things.html',
+          querystring: 'query1=value1&location=value2',
+        }),
       });
       expect(event).toEqual(
-        redirectResponse('/pretty/things/?query1=value1', 301),
+        redirectResponse('/pretty/things/?query1=value1&location=value2', 301),
       );
     });
 
@@ -152,9 +155,14 @@ describe('📦  Reroute Middleware', () => {
 
     it('Index PrettyURLs with Query Strings should work', async () => {
       const event = await testReroute({
-        event: eventResponse({ uri: '/pretty/index.html?query1=value1' }),
+        event: eventResponse({
+          uri: '/pretty/index.html',
+          querystring: 'query1=value1&location=value2',
+        }),
       });
-      expect(event).toEqual(redirectResponse('/pretty/?query1=value1', 301));
+      expect(event).toEqual(
+        redirectResponse('/pretty/?query1=value1&location=value2', 301),
+      );
     });
 
     it('PrettyURLs should be ignored for existing files', async () => {
@@ -242,10 +250,16 @@ describe('📦  Reroute Middleware', () => {
 
     it('External with query strings should work', async () => {
       const event = await testReroute({
-        event: eventResponse({ uri: '/internal9?query1=value1' }),
+        event: eventResponse({
+          uri: '/internal9/',
+          querystring: 'query1=value1&location=value2',
+        }),
       });
       expect(event).toEqual(
-        redirectResponse('https://external.com?query1=value1', 301),
+        redirectResponse(
+          'https://external.com?query1=value1&location=value2',
+          301,
+        ),
       );
     });
   });
@@ -277,10 +291,16 @@ describe('📦  Reroute Middleware', () => {
 
     it('Query should be passed properly with rewrite', async () => {
       const event = await testReroute({
-        event: eventResponse({ uri: '/blog?query1=val1&query2=val2' }),
+        event: eventResponse({
+          uri: '/blog',
+          querystring: 'query1=value1&location=value2',
+        }),
       });
       expect(event).toEqual(
-        eventResponse({ uri: '/blog/index.html?query1=val1&query2=val2' }),
+        eventResponse({
+          uri: '/blog/index.html',
+          querystring: 'query1=value1&location=value2',
+        }),
       );
     });
   });
@@ -297,7 +317,10 @@ describe('📦  Reroute Middleware', () => {
     it('Should work with query', async () => {
       axios.mockImplementation(() => Promise.resolve(axiosResponse));
       const event = await testReroute({
-        event: eventResponse({ uri: '/api/users/iDVB?query1=value1' }),
+        event: eventResponse({
+          uri: '/api/users/iDVB',
+          querystring: 'query1=value1&location=value2',
+        }),
       });
       expect(event).toEqual(proxyResponse);
     });
