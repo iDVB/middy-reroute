@@ -491,12 +491,6 @@ const redirect = (to, status) => {
 
 const rewrite = async (to, host, event) => {
   logger('Rewriting: ', to);
-  const isNotAURI = !isAbsoluteURI(to);
-  const keyDoesNotExist = !(await doesKeyExist(to));
-  const has404 = await get404Response();
-  console.log('is not absolute URI', isNotAURI);
-  console.log('key does not exist', keyDoesNotExist);
-  console.log('404 response', has404);
   const resp =
     (!isAbsoluteURI(to) &&
       !(await doesKeyExist(to)) &&
