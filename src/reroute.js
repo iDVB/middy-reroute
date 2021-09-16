@@ -101,11 +101,13 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
 
   try {
     // Check if file exists
-    const keyExists = await doesKeyExist(request.uri);
-
+    const parsedURI = new URL(
+      `https://example.com${request.uri}?${request.querystring}`,
+    );
+    const keyExists = await doesKeyExist(parsedURI.pathname);
     // Detect if needing friendly URLs
     const isUnFriendlyUrl =
-      options.friendlyUrls && request.uri.match(options.regex.htmlEnd);
+      options.friendlyUrls && parsedURI.pathname.match(options.regex.htmlEnd);
 
     const [first, fullpath, file, filename] = isUnFriendlyUrl || [];
     const isIndex = filename === 'index';
@@ -113,9 +115,10 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     let event;
     // Apply Friendly URLs if file doesn't exist
     // Do not apply any rules and Redirect
+
     if (isUnFriendlyUrl && (!keyExists || isIndex)) {
       const end = isIndex ? '' : `${filename}/`;
-      const finalKey = `${fullpath}/${end}`;
+      const finalKey = `${fullpath}/${end}${parsedURI.search}`;
       logger('UN-FriendlyURL [from:to]: ', request.uri, finalKey);
       event = redirect(finalKey, 301);
     } else {
@@ -130,12 +133,13 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
         host,
         options.incomingProtocol,
       );
+
       if (match) {
         logger('Match FOUND: ', match.parsedTo);
         // Match: match found
         // Use status to decide how to handle
         event = isRedirectURI(match.status)
-          ? redirect(match.parsedTo, match.status)
+          ? redirect(`${match.parsedTo}${parsedURI.search}`, match.status)
           : isAbsoluteURI(match.parsedTo)
           ? await proxy(match.parsedTo, handler.event)
           : await rewrite(
@@ -185,10 +189,14 @@ const capitalizeParam = (param) =>
     .map((i) => i.charAt(0).toUpperCase() + i.slice(1))
     .join('-');
 
-const forceDefaultDoc = (uri) =>
-  path.extname(uri) === '' && !!options.defaultDoc
-    ? path.join(uri, options.defaultDoc)
-    : uri;
+const forceDefaultDoc = (uri) => {
+  if (path.extname(uri) === '' && !!options.defaultDoc) {
+    const newURL = new URL(`https://example.com/${uri}`);
+    newURL.pathname = path.join(newURL.pathname, options.defaultDoc);
+    return `${newURL.pathname}${newURL.search}${newURL.hash}`;
+  }
+  return uri;
+};
 
 const lambdaReponseToObj = (req) => {
   const { method, body } = req;
@@ -310,9 +318,10 @@ const userAgentParser = (testuserAgentArray, userAgentHeader) => {
 const findMatch = (data, path, host, protocol) => {
   let params;
   const fullUri = host && `${protocol}${host}${path}`;
+  const parsedPath = parse(path);
   const match = _find(data, (o) => {
     const from = route(o.from);
-    params = isAbsoluteURI(o.from) ? from(fullUri) : from(parse(path).pathname);
+    params = isAbsoluteURI(o.from) ? from(fullUri) : from(parsedPath.pathname);
 
     // If there specific language rules, do they match
     const languagePass = !!o.conditions.language
@@ -338,7 +347,14 @@ const findMatch = (data, path, host, protocol) => {
     const passesConditions = languagePass && countryPass && agentPass;
     return params !== false && passesConditions;
   });
-  return match && { ...match, parsedTo: replaceAll(params, match.to) };
+  return (
+    match && {
+      ...match,
+      parsedTo: `${replaceAll(params, match.to)}${parsedPath.search || ''}${
+        parsedPath.hash || ''
+      }`,
+    }
+  );
 };
 
 ///////////////////////
@@ -475,6 +491,12 @@ const redirect = (to, status) => {
 
 const rewrite = async (to, host, event) => {
   logger('Rewriting: ', to);
+  const isNotAURI = !isAbsoluteURI(to);
+  const keyDoesNotExist = !(await doesKeyExist(to));
+  const has404 = await get404Response();
+  console.log('is not absolute URI', isNotAURI);
+  console.log('key does not exist', keyDoesNotExist);
+  console.log('404 response', has404);
   const resp =
     (!isAbsoluteURI(to) &&
       !(await doesKeyExist(to)) &&

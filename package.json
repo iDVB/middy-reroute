@@ -47,7 +47,7 @@
 		"ua-parser-js": "^0.7.22"
 	},
 	"devDependencies": {
-		"@babel/cli": "^7.12.8",
+		"@babel/cli": "^7.12.1",
 		"@babel/core": "^7.12.8",
 		"@babel/plugin-external-helpers": "^7.12.1",
 		"@babel/plugin-proposal-object-rest-spread": "^7.12.1",
