@@ -5,6 +5,7 @@ import merge from '../utils/deepmerge';
 const eventResponse = (
   {
     uri,
+    querystring = '',
     domainName = 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
     headers: headerParams,
   },
@@ -70,7 +71,7 @@ const eventResponse = (
                   region: 'us-east-1',
                 },
               },
-              querystring: '',
+              querystring,
               uri,
             },
           },

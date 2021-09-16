@@ -101,7 +101,9 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
 
   try {
     // Check if file exists
-    const parsedURI = new URL(`https://example.com${request.uri}`);
+    const parsedURI = new URL(
+      `https://example.com${request.uri}?${request.querystring}`,
+    );
     const keyExists = await doesKeyExist(parsedURI.pathname);
     // Detect if needing friendly URLs
     const isUnFriendlyUrl =
@@ -116,7 +118,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
 
     if (isUnFriendlyUrl && (!keyExists || isIndex)) {
       const end = isIndex ? '' : `${filename}/`;
-      const finalKey = `${fullpath}/${end}${parsedURI.search}${parsedURI.hash}`;
+      const finalKey = `${fullpath}/${end}${parsedURI.search}`;
       logger('UN-FriendlyURL [from:to]: ', request.uri, finalKey);
       event = redirect(finalKey, 301);
     } else {
@@ -137,7 +139,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
         // Match: match found
         // Use status to decide how to handle
         event = isRedirectURI(match.status)
-          ? redirect(match.parsedTo, match.status)
+          ? redirect(`${match.parsedTo}${parsedURI.search}`, match.status)
           : isAbsoluteURI(match.parsedTo)
           ? await proxy(match.parsedTo, handler.event)
           : await rewrite(
@@ -489,6 +491,12 @@ const redirect = (to, status) => {
 
 const rewrite = async (to, host, event) => {
   logger('Rewriting: ', to);
+  const isNotAURI = !isAbsoluteURI(to);
+  const keyDoesNotExist = !(await doesKeyExist(to));
+  const has404 = await get404Response();
+  console.log('is not absolute URI', isNotAURI);
+  console.log('key does not exist', keyDoesNotExist);
+  console.log('404 response', has404);
   const resp =
     (!isAbsoluteURI(to) &&
       !(await doesKeyExist(to)) &&
