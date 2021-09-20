@@ -502,6 +502,7 @@ const rewrite = async (to, host, event) => {
             request: {
               headers: { host: [{ key: 'Host', value: host }] },
               uri: to,
+              querystring: '',
             },
           },
         },

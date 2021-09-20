@@ -299,7 +299,7 @@ describe('📦  Reroute Middleware', () => {
       expect(event).toEqual(
         eventResponse({
           uri: '/blog/index.html',
-          querystring: 'query1=value1&location=value2',
+          querystring: '',
         }),
       );
     });
