@@ -8,6 +8,7 @@ const eventResponse = (
     querystring = '',
     domainName = 'layer-redirects-dev-defaultbucket-1hr6azp5liexa',
     headers: headerParams,
+    path = '',
   },
   override = {},
 ) => {
@@ -67,7 +68,7 @@ const eventResponse = (
                   authMethod: 'origin-access-identity',
                   customHeaders: {},
                   domainName,
-                  path: '',
+                  path,
                   region: 'us-east-1',
                 },
               },
@@ -156,8 +157,7 @@ const axiosResponse = {
     location: 'Toronto, ON',
     email: null,
     hireable: null,
-    bio:
-      'Director of Technology @KlickInc \r\nDev, DevOp, Automation Advocate\r\nInto: #docker #serverless#makingiteasy',
+    bio: 'Director of Technology @KlickInc \r\nDev, DevOp, Automation Advocate\r\nInto: #docker #serverless#makingiteasy',
     public_repos: 43,
     public_gists: 21,
     followers: 14,

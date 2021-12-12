@@ -678,6 +678,31 @@ describe('📦  Reroute Middleware', () => {
       ]);
     });
   });
+
+  describe('Deep S3Origin Paths', () => {
+    it('Deep path should work', async () => {
+      const originPath = 'deploy-5cb612d332d99ed4ceddefea201977f7';
+
+      const event = await testReroute({
+        event: eventResponse({
+          uri: '/news/',
+          path: `/${originPath}`,
+        }),
+        testOptions: {
+          fileContents: {
+            [`${originPath}/_redirects`]: rules,
+            [`${originPath}/404.html`]: html404,
+          },
+        },
+      });
+      expect(event).toEqual(
+        eventResponse({
+          uri: '/blog/index.html',
+          path: `/${originPath}`,
+        }),
+      );
+    });
+  });
 });
 
 const expectNCallsWithArgs = (received, numCalls, expected) => {
