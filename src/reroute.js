@@ -43,19 +43,18 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     ['host', 'cloudfront-viewer-country', 'accept-language', 'user-agent'],
     request.headers,
   );
-  const s3DomainName = origin && origin.s3 && origin.s3.domainName;
-  const originBucket =
-    s3DomainName && s3DomainName.replace('.s3.amazonaws.com', '');
   const defaults = {
     file: '_redirects',
     rules: undefined,
     multiFile: false,
-    rulesBucket: originBucket,
     regex: {
       htmlEnd: /(.*)\/((.*)\.html?)$/,
       ignoreRules: /^(?:\s*(?:#.*)*)$[\r\n]{0,1}|(?:#.*)*/gm,
-      ruleline: /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?(?:(?:\s+)?([^\s\r\n]+))?/,
+      ruleline:
+        /([^\s\r\n]+)(?:\s+)([^\s\r\n]+)(?:\s+(\d+)([!]?))?(?:(?:\s+)?([^\s\r\n]+))?/,
       absoluteUri: /^(?:[a-z]+:)?\/\//,
+      bucketNameFromDomain:
+        /(^.+)(\.s3(?:\.[a-z]+-[a-z]+-[0-9]+)?\.amazonaws\.com$)/,
     },
     defaultStatus: 301,
     redirectStatuses: [301, 302, 303],
@@ -66,8 +65,16 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     incomingProtocol: 'https://',
     s3Options: { httpOptions: { connectTimeout: 2000 } }, // default 2 seconds
   };
+  const s3DomainName = origin?.s3?.domainName;
+  const originPath = origin?.s3?.path;
+  const originBucket = s3DomainName?.split(
+    defaults.regex.bucketNameFromDomain,
+  )?.[1];
   options = mergeAll([
     defaults,
+    {
+      rulesBucket: originBucket,
+    },
     opts,
     {
       originBucket,
@@ -104,7 +111,10 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     const parsedURI = new URL(
       `https://example.com${request.uri}?${request.querystring}`,
     );
-    const keyExists = await doesKeyExist(parsedURI.pathname);
+    const keyExists = await doesKeyExist({
+      key: parsedURI.pathname,
+      originPath,
+    });
     // Detect if needing friendly URLs
     const isUnFriendlyUrl =
       options.friendlyUrls && parsedURI.pathname.match(options.regex.htmlEnd);
@@ -123,7 +133,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
       event = redirect(finalKey, 301);
     } else {
       // Gather and parse rules
-      const data = await getRedirectData();
+      const data = await getRedirectData({ originPath });
       logger('Rules: ', data);
 
       // Find URI match in the rules
@@ -142,19 +152,21 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
           ? redirect(`${match.parsedTo}${parsedURI.search}`, match.status)
           : isAbsoluteURI(match.parsedTo)
           ? await proxy(match.parsedTo, handler.event)
-          : await rewrite(
-              forceDefaultDoc(match.parsedTo),
-              s3DomainName,
-              handler.event,
-            );
+          : await rewrite({
+              to: forceDefaultDoc(match.parsedTo),
+              host: s3DomainName,
+              event: handler.event,
+              originPath,
+            });
       } else {
         logger('NO Match');
         // Pass-Through: No match, so other then DefaultDoc, let it pass through
-        event = await rewrite(
-          forceDefaultDoc(request.uri),
-          s3DomainName,
-          handler.event,
-        );
+        event = await rewrite({
+          to: forceDefaultDoc(request.uri),
+          host: s3DomainName,
+          event: handler.event,
+          originPath,
+        });
       }
     }
 
@@ -192,8 +204,8 @@ const capitalizeParam = (param) =>
 const forceDefaultDoc = (uri) => {
   if (path.extname(uri) === '' && !!options.defaultDoc) {
     const newURL = new URL(`https://example.com/${uri}`);
-    newURL.pathname = path.join(newURL.pathname, options.defaultDoc);
-    return `${newURL.pathname}${newURL.search}${newURL.hash}`;
+    const pathname = path.join(newURL.pathname, options.defaultDoc);
+    return `${pathname}${newURL.search}${newURL.hash}`;
   }
   return uri;
 };
@@ -360,8 +372,8 @@ const findMatch = (data, path, host, protocol) => {
 ///////////////////////
 // Data Fetching     //
 ///////////////////////
-const doesKeyExist = (rawKey) => {
-  const Key = rawKey.replace(/^\/+([^\/])/, '$1');
+const doesKeyExist = ({ key: rawKey, originPath }) => {
+  const Key = path.join(originPath, rawKey).replace(/^\/+([^\/])/, '$1');
   logger('doesKeyExist: ', { Key, Bucket: options.originBucket });
   const cacheKey = `doesKeyExist_${options.rulesBucket}_${Key}`;
   return cache.get(cacheKey, () =>
@@ -385,10 +397,11 @@ const doesKeyExist = (rawKey) => {
   );
 };
 
-const getRedirectData = () => {
-  const Key = !options.multiFile
+const getRedirectData = ({ originPath }) => {
+  const file = !options.multiFile
     ? options.file
     : `${options.file}_${options.host}`;
+  const Key = path.join(originPath, file).replace(/^\/+([^\/])/, '$1');
   const cacheKey = `getRedirectData_${options.rulesBucket}_${Key}`;
   return cache.get(cacheKey, () => {
     logger(`
@@ -440,8 +453,10 @@ const getProxyResponse = (resp) => {
   return response;
 };
 
-const get404Response = () => {
-  const Key = options.custom404;
+const get404Response = ({ originPath }) => {
+  const Key = path
+    .join(originPath, options.custom404)
+    .replace(/^\/+([^\/])/, '$1');
   const cacheKey = `get404Response_${options.rulesBucket}_${Key}`;
   return cache.get(cacheKey, () =>
     S3.getObject({
@@ -489,12 +504,12 @@ const redirect = (to, status) => {
   };
 };
 
-const rewrite = async (to, host, event) => {
+const rewrite = async ({ to, host, event, originPath }) => {
   logger('Rewriting: ', to);
   const resp =
     (!isAbsoluteURI(to) &&
-      !(await doesKeyExist(to)) &&
-      (await get404Response())) ||
+      !(await doesKeyExist({ key: to, originPath })) &&
+      (await get404Response({ originPath }))) ||
     merge(event, {
       Records: [
         {
