@@ -1,4 +1,5 @@
 import AWS from 'aws-sdk';
+import * as util from 'util';
 import { STATUS_CODES } from 'http';
 import logger from './utils/logger';
 import axios from 'axios';
@@ -103,8 +104,15 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
     UserAgent: ${options.userAgent}
     `);
 
-  // Origin must be S3
-  if (!s3DomainName) throw new Error('Must use S3 as Origin');
+  console.log(util.inspect({ middyReroute: request }, { depth: null }));
+
+  // If "X-No-Middy-Reroute" header is present then do no run
+  if (!!request.headers['X-No-Middy-Reroute'] === true) return;
+
+  console.log('after return', request.headers['X-No-Middy-Reroute']);
+
+  // Bypass if Origin is not S3
+  if (!s3DomainName) return;
 
   try {
     // Check if file exists
@@ -177,6 +185,7 @@ const rerouteMiddleware = async (opts = {}, handler, next) => {
   }
 
   logger('RETURNING EVENT!!!!', handler.event);
+  console.log(util.inspect({ eventFinal: handler.event }, { depth: null }));
   return;
 };
 
